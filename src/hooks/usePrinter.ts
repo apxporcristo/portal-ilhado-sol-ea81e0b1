@@ -663,11 +663,13 @@ export function usePrinter() {
       );
     }
 
-    // Generate WiFi QR code only if QR dimensions are configured
-    const showQr = layout.qrWidth > 0 && layout.qrHeight > 0;
+    // Generate WiFi QR code only if QR dimensions are configured AND wifi password exists
+    const wifiPassword = localStorage.getItem('voucher-network-password') || '';
+    const showQr = layout.qrWidth > 0 && layout.qrHeight > 0 && wifiPassword.trim().length > 0;
     let wifiQrCommands: number[] = [];
     if (showQr) {
       const wifiQrString = getWifiQrString();
+      console.log('[Voucher QR] Gerando QR WiFi, width:', layout.qrWidth, 'string:', wifiQrString);
       try {
         wifiQrCommands = await createQRCodeRasterCommands(wifiQrString, layout.qrWidth);
       } catch (err) {
@@ -675,6 +677,8 @@ export function usePrinter() {
         const qrModuleSize = Math.max(3, Math.min(16, Math.round(layout.qrWidth / 4)));
         wifiQrCommands = createQRCodeCommands(wifiQrString, qrModuleSize);
       }
+    } else {
+      console.log('[Voucher QR] QR não incluído - qrWidth:', layout.qrWidth, 'qrHeight:', layout.qrHeight, 'senha configurada:', wifiPassword.trim().length > 0);
     }
 
     // Build parts separately to avoid spread on huge arrays
