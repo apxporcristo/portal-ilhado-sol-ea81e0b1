@@ -331,6 +331,45 @@ export default function FichasLista() {
     return cart.filter(c => c.ficha.id === fichaId).reduce((sum, c) => sum + c.quantidade, 0);
   };
 
+  const startDirectPrint = () => {
+    // Filter printable items
+    const printableItems = cart.filter(item => {
+      const produto = produtos.find(p => p.id === item.ficha.id);
+      return (produto as any)?.imprimir_ficha !== false;
+    });
+
+    // Group by printer_id
+    const assigned: { printer: Impressora; items: CartItem[] }[] = [];
+    const unassigned: CartItem[] = [];
+
+    for (const item of printableItems) {
+      const produto = produtos.find(p => p.id === item.ficha.id);
+      const printerId = produto?.printer_id || (item.ficha as any)?.printer_id;
+      if (printerId) {
+        const printer = impressorasAtivas.find(p => p.id === printerId);
+        if (printer) {
+          const group = assigned.find(g => g.printer.id === printer.id);
+          if (group) group.items.push(item);
+          else assigned.push({ printer, items: [item] });
+          continue;
+        }
+      }
+      unassigned.push(item);
+    }
+
+    setPendingAssignedGroups(assigned);
+
+    if (unassigned.length > 0 && impressorasAtivas.length > 0) {
+      // Need user to pick a printer for unassigned items
+      setPendingUnassignedItems(unassigned);
+      setShowPrinterSelectModal(true);
+    } else {
+      // All items have printers or no printers registered at all
+      setPendingUnassignedItems([]);
+      executePrint(assigned, unassigned);
+    }
+  };
+
   const handleInitPrint = () => {
     if (cart.length === 0) return;
     if (needsAtendente && !nomeAtendente) {
@@ -343,27 +382,27 @@ export default function FichasLista() {
       setDocumentoCliente('');
       setPrintDialog(true);
     } else {
-      // Show printer selection if there are registered printers
-      if (impressorasAtivas.length > 0) {
-        setShowPrinterSelectModal(true);
-      } else {
-        executePrint();
-      }
+      startDirectPrint();
     }
   };
 
   const handleConfirmPrint = () => {
     setPrintDialog(false);
-    if (impressorasAtivas.length > 0) {
-      setShowPrinterSelectModal(true);
-    } else {
-      executePrint();
-    }
+    startDirectPrint();
   };
 
-  const handleSelectPrinterAndPrint = (imp: Impressora) => {
+  const handleSelectPrinterForUnassigned = (imp: Impressora) => {
     setShowPrinterSelectModal(false);
-    executePrint(imp);
+    // Merge unassigned items into assigned groups under the selected printer
+    const merged = [...pendingAssignedGroups];
+    const existingGroup = merged.find(g => g.printer.id === imp.id);
+    if (existingGroup) {
+      existingGroup.items.push(...pendingUnassignedItems);
+    } else {
+      merged.push({ printer: imp, items: [...pendingUnassignedItems] });
+    }
+    setPendingUnassignedItems([]);
+    executePrint(merged, []);
   };
 
   const buildItemsText = (item: CartItem): string => {
