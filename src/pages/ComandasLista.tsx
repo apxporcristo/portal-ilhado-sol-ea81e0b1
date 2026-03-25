@@ -18,12 +18,18 @@ import { toast } from '@/hooks/use-toast';
 export default function ComandasLista() {
   const navigate = useNavigate();
   const { comandas, comandasAbertas, comandasLivres, loading, abrirComanda, getItensComanda, refetch } = useComandas();
+  const { impressoras } = useImpressoras();
+  const { createPrintJob } = usePrintJobs();
+  const impressorasAtivas = impressoras.filter(p => p.ativa);
   const [search, setSearch] = useState('');
   const [showAbrir, setShowAbrir] = useState(false);
   const [selectedComandaId, setSelectedComandaId] = useState('');
   const [nomeCliente, setNomeCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null);
+  const [showDetalhe, setShowDetalhe] = useState(false);
+  const [showPrinterSelect, setShowPrinterSelect] = useState(false);
+  const [pendingPrintItems, setPendingPrintItems] = useState<{ items: ComandaItem[]; comanda: Comanda } | null>(null);
   const [showDetalhe, setShowDetalhe] = useState(false);
 
   // Item counts per comanda
