@@ -119,14 +119,20 @@ export default function VoucherLista() {
 
           if (voucherPrinter?.tipo === 'rede' && voucherPrinter.ip) {
             const networkName = getNetworkName();
-            const wifiQrData = getWifiQrString();
             const now = new Date();
             const currentDate = now.toLocaleDateString('pt-BR');
             const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             let allOk = true;
             for (const v of voucherData) {
               const texto = "VOUCHER DE ACESSO\n\n" + `Coloque no modo avião antes de acessar a rede "${networkName}"\n\n` + `Voucher: ${v.voucher_id}\n` + `Tempo de conexão: ${v.tempo_validade}\n` + `Data: ${currentDate} ${currentTime}`;
-              const ok = await printDirect(voucherPrinter.ip, voucherPrinter.porta || '9100', texto);
+              const ok = await createPrintJob({
+                printer_id: voucherPrinter.id || '',
+                printer_name: voucherPrinter.nome,
+                device_ip: voucherPrinter.ip,
+                conteudo: texto,
+                tipo_documento: 'voucher',
+                referencia_id: v.voucher_id,
+              });
               if (!ok) { allOk = false; break; }
             }
             if (allOk) printSuccess = true;
