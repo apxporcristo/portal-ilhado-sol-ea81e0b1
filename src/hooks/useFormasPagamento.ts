@@ -31,6 +31,11 @@ export function useFormasPagamento() {
 
   const createForma = useCallback(async (forma: { nome: string; ativo?: boolean; exibir_troco?: boolean }) => {
     const supabase = await getSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({ title: 'Erro', description: 'Usuário não autenticado.', variant: 'destructive' });
+      return false;
+    }
     const { error } = await supabase.from('formas_pagamento' as any).insert(forma as any);
     if (error) {
       toast({ title: 'Erro', description: `Não foi possível criar: ${error.message}`, variant: 'destructive' });
