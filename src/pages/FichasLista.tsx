@@ -1087,9 +1087,7 @@ export default function FichasLista() {
               Selecionar Impressora
             </DialogTitle>
             <DialogDescription>
-              {pendingUnassignedItems.length > 0
-                ? `${pendingUnassignedItems.length} item(ns) sem impressora configurada. Escolha para onde enviar:`
-                : 'Escolha a impressora para enviar as fichas.'}
+              Escolha a impressora para enviar as fichas:
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 mt-2">
