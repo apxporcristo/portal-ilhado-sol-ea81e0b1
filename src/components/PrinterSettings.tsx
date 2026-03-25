@@ -58,7 +58,6 @@ export function PrinterSettings() {
   const [form, setForm] = useState<PrinterFormData>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [testingPrinterId, setTestingPrinterId] = useState<string | null>(null);
-  const [printServerUrl, setPrintServerUrl] = useState(getLocalPrintServerUrl());
 
   const buildTestContent = (imp: Impressora) => [
     '\x1B\x40', '\x1B\x61\x01', '\x1B\x45\x01',
