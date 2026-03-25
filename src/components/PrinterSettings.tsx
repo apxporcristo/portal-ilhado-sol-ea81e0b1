@@ -75,7 +75,14 @@ export function PrinterSettings() {
     if (imp.tipo !== 'rede' || !imp.ip) return;
     setTestingPrinterId(imp.id);
     try {
-      await createPrintJob(imp.id, buildTestContent(imp), 'escpos');
+      await createPrintJob({
+        printer_id: imp.id,
+        printer_name: imp.nome,
+        device_ip: imp.ip || undefined,
+        conteudo: buildTestContent(imp),
+        formato: 'escpos',
+        tipo_documento: 'teste',
+      });
     } finally {
       setTestingPrinterId(null);
     }
