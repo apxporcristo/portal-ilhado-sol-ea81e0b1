@@ -39,34 +39,31 @@ export function useAndroidBridge() {
 
   useEffect(() => {
     window.__print_ok = (tipo: string) => {
-      toast({
-        title: 'Impressão realizada',
-        description: `Impressão via ${tipo}`,
-      });
+      toast({ title: 'Impressão realizada', description: `Impressão via ${tipo}` });
     };
-
     window.__print_err = (msg: string) => {
-      toast({
-        title: 'Erro ao imprimir',
-        description: `Erro: ${msg}`,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao imprimir', description: `Erro: ${msg}`, variant: 'destructive' });
     };
-
     window.__printer_config_needed = () => {
-      toast({
-        title: 'Impressora não configurada',
-        description: 'Nenhuma impressora configurada.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Impressora não configurada', description: 'Nenhuma impressora configurada.', variant: 'destructive' });
     };
-
     window.__printer_found = (ip: string) => {
       console.log('Impressora encontrada:', ip);
-      toast({
-        title: 'Impressora encontrada',
-        description: `Impressora encontrada: ${ip}`,
-      });
+      toast({ title: 'Impressora encontrada', description: `Impressora encontrada: ${ip}` });
+    };
+    window.__scale_weight = (weight: string) => {
+      console.log('[AndroidBridge] Peso recebido:', weight);
+    };
+    window.__scale_connected = () => {
+      console.log('[AndroidBridge] Balança conectada');
+      toast({ title: 'Balança conectada' });
+    };
+    window.__scale_disconnected = () => {
+      console.log('[AndroidBridge] Balança desconectada');
+    };
+    window.__scale_error = (msg: string) => {
+      console.error('[AndroidBridge] Erro balança:', msg);
+      toast({ title: 'Erro na balança', description: msg, variant: 'destructive' });
     };
 
     return () => {
@@ -74,6 +71,10 @@ export function useAndroidBridge() {
       delete window.__print_err;
       delete window.__printer_config_needed;
       delete window.__printer_found;
+      delete window.__scale_weight;
+      delete window.__scale_connected;
+      delete window.__scale_disconnected;
+      delete window.__scale_error;
     };
   }, []);
 
