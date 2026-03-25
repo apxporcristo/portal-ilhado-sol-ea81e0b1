@@ -70,17 +70,6 @@ export function PrinterSettings() {
     'Conexao OK!\n\n\n', '\x1D\x56\x00',
   ].join('');
 
-  /** Testa via Print Server local (direto) */
-  const testDirectPrint = useCallback(async (imp: Impressora) => {
-    if (imp.tipo !== 'rede' || !imp.ip) return;
-    setTestingPrinterId(imp.id);
-    try {
-      await printDirect(imp.ip, imp.porta || 9100, buildTestContent(imp));
-    } finally {
-      setTestingPrinterId(null);
-    }
-  }, [printDirect]);
-
   /** Envia teste para a fila do Supabase */
   const sendTestToQueue = useCallback(async (imp: Impressora) => {
     if (imp.tipo !== 'rede' || !imp.ip) return;
