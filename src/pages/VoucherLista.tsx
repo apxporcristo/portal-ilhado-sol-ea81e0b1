@@ -7,6 +7,7 @@ import { useImpressoras } from '@/hooks/useImpressoras';
 import { useVoucherCart } from '@/hooks/useVoucherCart';
 import { useAndroidBridge } from '@/hooks/useAndroidBridge';
 import { printVouchersBatch } from '@/lib/print-browser';
+import { getLocalPrintServerUrl } from '@/hooks/usePrintJobs';
 import { getNetworkName, getWifiQrString } from '@/hooks/useNetworkName';
 import { PrinterSelectDialog, AvailablePrinter } from '@/components/PrinterSelectDialog';
 import { VoucherCart } from '@/components/VoucherCart';
