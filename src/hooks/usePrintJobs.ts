@@ -73,11 +73,15 @@ export function usePrintJobs() {
       return false;
     }
     try {
-      const encoded = btoa(unescape(encodeURIComponent(conteudo)));
+      // Convert string content to byte array (same format VoucherLista uses)
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(conteudo);
+      const dataArray = Array.from(bytes);
+      
       const res = await fetch(`${serverUrl}/print`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip, port: Number(port), data: encoded }),
+        body: JSON.stringify({ ip, port: Number(port), data: dataArray }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Erro no Print Server');
