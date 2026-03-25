@@ -118,34 +118,8 @@ export default function VoucherLista() {
             window.AndroidBridge.smartPrint(payload);
           }
           printSuccess = true;
-        } else if (printer.type === 'network') {
-          const { printer: voucherPrinter } = getVoucherPrinter();
-
-          if (voucherPrinter?.tipo === 'rede' && voucherPrinter.ip) {
-            const networkName = getNetworkName();
-            const now = new Date();
-            const currentDate = now.toLocaleDateString('pt-BR');
-            const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            let allOk = true;
-            for (const v of voucherData) {
-              const texto = "VOUCHER DE ACESSO\n\n" + `Coloque no modo avião antes de acessar a rede "${networkName}"\n\n` + `Voucher: ${v.voucher_id}\n` + `Tempo de conexão: ${v.tempo_validade}\n` + `Data: ${currentDate} ${currentTime}`;
-              const ok = await createPrintJob({
-                printer_id: voucherPrinter.id || '',
-                printer_name: voucherPrinter.nome,
-                device_ip: voucherPrinter.ip,
-                conteudo: texto,
-                tipo_documento: 'voucher',
-                referencia_id: v.voucher_id,
-              });
-              if (!ok) { allOk = false; break; }
-            }
-            if (allOk) printSuccess = true;
-          } else {
-            toast({ title: 'Impressão indisponível', description: 'Impressão local indisponível neste dispositivo. Utilize o app auxiliar de impressão.', variant: 'destructive' });
-          }
         } else {
           // Tentar deep link para app auxiliar
-          const networkName = getNetworkName();
           for (const v of voucherData) {
             const texto = `VOUCHER DE ACESSO\nVoucher: ${v.voucher_id}\nTempo: ${v.tempo_validade}`;
             window.location.href = "voucherilha://print?text=" + encodeURIComponent(texto) + "&printer=" + encodeURIComponent(printer.name);
