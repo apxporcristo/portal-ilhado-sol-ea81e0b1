@@ -14,7 +14,6 @@ import { usePrinterContext } from '@/contexts/PrinterContext';
 import { useAndroidBridge } from '@/hooks/useAndroidBridge';
 import { useOptionalUserSession } from '@/contexts/UserSessionContext';
 import { useImpressoras, Impressora } from '@/hooks/useImpressoras';
-import { Impressora } from '@/hooks/useImpressoras';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
