@@ -45,7 +45,7 @@ export default function VoucherLista() {
   const { getVoucherPrinter } = useImpressoras();
   const cart = useVoucherCart();
   const androidBridge = useAndroidBridge();
-  const { createPrintJob } = usePrintJobs();
+  const { printDirect } = usePrintJobs();
   const [showPrinterSelect, setShowPrinterSelect] = useState(false);
   const [availablePrinters, setAvailablePrinters] = useState<AvailablePrinter[]>([]);
   const [batchPrinting, setBatchPrinting] = useState(false);
@@ -117,28 +117,19 @@ export default function VoucherLista() {
         } else if (printer.type === 'network') {
           const { printer: voucherPrinter } = getVoucherPrinter();
 
-          if (voucherPrinter?.tipo === 'rede') {
-            try {
-              for (const v of voucherData) {
-                const escposData = await createVoucherData(v.voucher_id, v.tempo_validade);
-                const payload = JSON.stringify({
-                  type: 'network',
-                  printer_id: voucherPrinter.id,
-                  printer_name: voucherPrinter.nome,
-                  printer_ip: voucherPrinter.ip,
-                  printer_port: voucherPrinter.porta || '9100',
-                  data: Array.from(escposData),
-                  voucher_id: v.voucher_id,
-                  tempo_validade: v.tempo_validade,
-                });
-                const queued = await createPrintJob(voucherPrinter.id, payload, 'json');
-                if (!queued) throw new Error('queue_failed');
-              }
-              printSuccess = true;
-            } catch (err) {
-              console.error('Erro ao enviar impressão para fila:', err);
-              toast({ title: 'Erro na impressão', description: 'Não foi possível enviar para a impressora cadastrada.', variant: 'destructive' });
+          if (voucherPrinter?.tipo === 'rede' && voucherPrinter.ip) {
+            const networkName = getNetworkName();
+            const wifiQrData = getWifiQrString();
+            const now = new Date();
+            const currentDate = now.toLocaleDateString('pt-BR');
+            const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            let allOk = true;
+            for (const v of voucherData) {
+              const texto = "VOUCHER DE ACESSO\n\n" + `Coloque no modo avião antes de acessar a rede "${networkName}"\n\n` + `Voucher: ${v.voucher_id}\n` + `Tempo de conexão: ${v.tempo_validade}\n` + `Data: ${currentDate} ${currentTime}`;
+              const ok = await printDirect(voucherPrinter.ip, voucherPrinter.porta || '9100', texto);
+              if (!ok) { allOk = false; break; }
             }
+            if (allOk) printSuccess = true;
           } else {
             toast({ title: 'Impressão indisponível', description: 'Impressão local indisponível neste dispositivo. Utilize o app auxiliar de impressão.', variant: 'destructive' });
           }
@@ -202,7 +193,7 @@ export default function VoucherLista() {
     } finally {
       setBatchPrinting(false);
     }
-  }, [cart, getFreVouchersBatch, markVouchersPreReservado, createVoucherData, printData, isBluetoothConnected, reconnectBluetooth, scanBluetoothDevices, connectBluetooth, androidBridge, getVoucherPrinter, createPrintJob]);
+  }, [cart, getFreVouchersBatch, markVouchersPreReservado, createVoucherData, printData, isBluetoothConnected, reconnectBluetooth, scanBluetoothDevices, connectBluetooth, androidBridge, getVoucherPrinter, printDirect]);
 
   const handleBatchPrint = useCallback(async () => {
     const printers = getAvailablePrinters();
