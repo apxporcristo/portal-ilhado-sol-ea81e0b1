@@ -42,8 +42,16 @@ const ESC_POS = {
   BOLD_ON: new Uint8Array([0x1B, 0x45, 0x01]), // Bold on
   BOLD_OFF: new Uint8Array([0x1B, 0x45, 0x00]), // Bold off
   SIZE_NORMAL: new Uint8Array([0x1D, 0x21, 0x00]), // Normal size
+  SIZE_DOUBLE_H: new Uint8Array([0x1D, 0x21, 0x01]), // Double height only
   SIZE_DOUBLE: new Uint8Array([0x1D, 0x21, 0x11]), // Double height and width
 };
+
+// Map font size (pt) to ESC/POS size command - same logic as ficha layout
+function escposSizeCmd(size: number): Uint8Array {
+  if (size >= 15) return ESC_POS.SIZE_DOUBLE;      // Double width + height
+  if (size >= 11) return ESC_POS.SIZE_DOUBLE_H;     // Double height only
+  return ESC_POS.SIZE_NORMAL;                        // Normal
+}
 
 export function usePrinter() {
   const [config, setConfig] = useState<PrinterConfig>(() => {
