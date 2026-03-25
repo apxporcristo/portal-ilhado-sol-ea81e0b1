@@ -191,72 +191,72 @@ export function useBalanca() {
     return false;
   }, [isBtConnected, reconnectSavedDevice]);
 
-  // Request new device pairing via browser picker
+  // Pair new device - only via Android Bridge (Web Bluetooth doesn't support classic serial)
   const parearNovoDispositivo = useCallback(async (): Promise<boolean> => {
-    try {
-      if (!('bluetooth' in navigator)) {
-        toast({ title: 'Bluetooth indisponível', description: 'Este navegador não suporta Bluetooth.', variant: 'destructive' });
+    if (window.IS_ANDROID_APP && window.AndroidBridge?.listPairedDevices) {
+      // In Android app, list paired devices and let user pick
+      const devices = listarDispositivosPareadosAndroid();
+      if (devices.length === 0) {
+        toast({ title: 'Nenhum dispositivo pareado', description: 'Pareie a balança nas configurações Bluetooth do Android primeiro.', variant: 'destructive' });
         return false;
       }
-
-      setStatus('conectando');
-      const device = await (navigator as any).bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ['0000fff0-0000-1000-8000-00805f9b34fb'],
-      });
-
-      const ok = await connectToDevice(device);
+      // Connect to first device as default (user can change in settings)
+      const first = devices[0];
+      const ok = window.AndroidBridge.connectScale!(first.address, config.baud_rate);
       if (ok) {
-        // Save device info to config
         const newConfig: BalancaConfig = {
           ...config,
-          dispositivo_nome: device.name || 'Balança BT',
-          dispositivo_id: device.id || null,
+          dispositivo_nome: first.name,
+          dispositivo_id: first.address,
         };
         await saveConfig(newConfig);
-        toast({ title: 'Balança pareada', description: `Conectado a: ${device.name || 'Dispositivo BT'}` });
+        setStatus('conectada');
+        toast({ title: 'Balança conectada', description: `Conectado a: ${first.name}` });
         return true;
       }
-      return false;
-    } catch (err) {
-      console.error('Erro ao parear BT:', err);
       setStatus('falha');
       return false;
     }
-  }, [config, connectToDevice, saveConfig]);
 
-  // List previously paired BT devices
+    toast({
+      title: 'Bluetooth Classic não suportado no navegador',
+      description: 'Balanças seriais usam Bluetooth Classic (SPP), que não é suportado pelo Chrome. Use o app Android auxiliar.',
+      variant: 'destructive',
+    });
+    return false;
+  }, [config, saveConfig, listarDispositivosPareadosAndroid]);
+
+  // List previously paired BT devices (only via Android Bridge)
   const listarDispositivosPareados = useCallback(async (): Promise<Array<{ id: string; name: string; device: any }>> => {
-    if (!('bluetooth' in navigator)) return [];
-    try {
-      if ((navigator as any).bluetooth.getDevices) {
-        const devices = await (navigator as any).bluetooth.getDevices();
-        return (devices || []).map((d: any) => ({
-          id: d.id || '',
-          name: d.name || 'Dispositivo desconhecido',
-          device: d,
-        }));
-      }
-    } catch (err) {
-      console.error('Erro listarDispositivosPareados:', err);
+    if (window.IS_ANDROID_APP) {
+      return listarDispositivosPareadosAndroid().map(d => ({
+        id: d.address,
+        name: d.name,
+        device: d,
+      }));
     }
     return [];
-  }, []);
+  }, [listarDispositivosPareadosAndroid]);
 
-  // Connect to a specific device from the list
+  // Connect to a specific device from the list (via Android Bridge)
   const conectarDispositivo = useCallback(async (device: any): Promise<boolean> => {
-    const ok = await connectToDevice(device);
-    if (ok) {
-      const newConfig: BalancaConfig = {
-        ...config,
-        dispositivo_nome: device.name || 'Balança BT',
-        dispositivo_id: device.id || null,
-      };
-      await saveConfig(newConfig);
-      return true;
+    if (window.IS_ANDROID_APP && window.AndroidBridge?.connectScale) {
+      const address = device.address || device.id;
+      const ok = window.AndroidBridge.connectScale(address, config.baud_rate);
+      if (ok) {
+        const newConfig: BalancaConfig = {
+          ...config,
+          dispositivo_nome: device.name || 'Balança BT',
+          dispositivo_id: address,
+        };
+        await saveConfig(newConfig);
+        setStatus('conectada');
+        return true;
+      }
+      setStatus('falha');
     }
     return false;
-  }, [config, connectToDevice, saveConfig]);
+  }, [config, saveConfig]);
 
   // ========== WEIGHT READING ==========
 
