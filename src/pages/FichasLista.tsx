@@ -489,7 +489,12 @@ export default function FichasLista() {
         if (item.ficha.exigir_dados_atendente && nomeAtendente.trim()) {
           dadosExtras.nome_atendente = nomeAtendente.trim();
         }
-        await registrarImpressao(item.ficha.id, item.quantidade, unitTotal, dadosExtras);
+        try {
+          await registrarImpressao(item.ficha.id, item.quantidade, unitTotal, dadosExtras);
+          console.log('[Ficha Print] registrarImpressao OK para:', item.ficha.nome_produto);
+        } catch (regErr) {
+          console.warn('[Ficha Print] registrarImpressao falhou (continuando):', regErr);
+        }
       }
 
       // Contabilizar em fichas_impressas para relatório
@@ -500,18 +505,23 @@ export default function FichasLista() {
         if (item.selectedItems.length > 0) {
           produtoNome += ' | ' + item.selectedItems.map(si => `${si.categoria}: ${si.item.nome}`).join(', ');
         }
-        await sbClient.from('fichas_impressas' as any).insert({
-          produto_id: item.ficha.id,
-          produto_nome: produtoNome,
-          categoria_id: item.ficha.categoria_id,
-          categoria_nome: item.ficha.categoria_nome,
-          quantidade: item.quantidade,
-          valor_unitario: unitTotal,
-          valor_total: unitTotal * item.quantidade,
-          nome_cliente: nomeCliente.trim() || null,
-          telefone_cliente: telefoneCliente.trim() || null,
-          nome_atendente: nomeAtendente.trim() || null,
-        });
+        try {
+          await sbClient.from('fichas_impressas' as any).insert({
+            produto_id: item.ficha.id,
+            produto_nome: produtoNome,
+            categoria_id: item.ficha.categoria_id,
+            categoria_nome: item.ficha.categoria_nome,
+            quantidade: item.quantidade,
+            valor_unitario: unitTotal,
+            valor_total: unitTotal * item.quantidade,
+            nome_cliente: nomeCliente.trim() || null,
+            telefone_cliente: telefoneCliente.trim() || null,
+            nome_atendente: nomeAtendente.trim() || null,
+          });
+          console.log('[Ficha Print] fichas_impressas insert OK para:', produtoNome);
+        } catch (insErr) {
+          console.warn('[Ficha Print] fichas_impressas insert falhou (continuando):', insErr);
+        }
       }
 
       // Send assigned groups to print queue
