@@ -41,18 +41,14 @@ interface PendingChanges {
 }
 
 export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onClosed }: Props) {
-  const { getItensComanda, excluirItem, editarItem, registrarAlteracao, autenticarUsuario, fecharComanda } = useComandas();
+  const { getItensComanda, excluirItem, editarItem, registrarAlteracao, fecharComanda } = useComandas();
   const { formasAtivas } = useFormasPagamento();
+  const sessionCtx = useOptionalUserSession();
+  const loggedUser = sessionCtx?.access;
+
   const [items, setItems] = useState<ComandaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<PendingChanges>({ deletes: [], decreases: {}, descriptions: [] });
-
-  // Auth modal
-  const [showAuth, setShowAuth] = useState(false);
-  const [authCpf, setAuthCpf] = useState('');
-  const [authSenha, setAuthSenha] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authAction, setAuthAction] = useState<'save' | 'close'>('save');
   const [pendingPagamentos, setPendingPagamentos] = useState<PagamentoSelecionado[]>([]);
 
   // Close comanda
@@ -71,94 +67,30 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
 
   const hasChanges = pending.deletes.length > 0 || Object.keys(pending.decreases).length > 0;
 
-  // Group identical products, applying pending changes
-  const groupedItems = useMemo(() => {
-    const activeItems = items.filter(i => !pending.deletes.includes(i.id));
-    const groups: Record<string, GroupedItem> = {};
-    for (const item of activeItems) {
-      const compKey = item.complementos ? JSON.stringify(item.complementos) : '';
-      const key = `${item.produto_nome}|${compKey}|${Number(item.valor_unitario)}`;
-      if (groups[key]) {
-        groups[key].quantidade += item.quantidade;
-        groups[key].originalQuantidade += item.quantidade;
-        groups[key].valor_total += Number(item.valor_total);
-        groups[key].itemIds.push(item.id);
-        if (item.peso) groups[key].peso = (groups[key].peso || 0) + item.peso;
-      } else {
-        groups[key] = {
-          key,
-          produto_nome: item.produto_nome,
-          quantidade: item.quantidade,
-          originalQuantidade: item.quantidade,
-          valor_unitario: Number(item.valor_unitario),
-          valor_total: Number(item.valor_total),
-          peso: item.peso,
-          complementos: item.complementos,
-          itemIds: [item.id],
-        };
-      }
-    }
-    // Apply pending decreases
-    for (const [key, dec] of Object.entries(pending.decreases)) {
-      if (groups[key]) {
-        groups[key].quantidade -= dec;
-        groups[key].valor_total = groups[key].quantidade * groups[key].valor_unitario;
-      }
-    }
-    // Remove groups with 0 or less
-    return Object.values(groups).filter(g => g.quantidade > 0);
-  }, [items, pending]);
-
-  const totalComanda = useMemo(() => groupedItems.reduce((sum, g) => sum + g.valor_total, 0), [groupedItems]);
-
-  const handleDecrease = (group: GroupedItem) => {
-    if (group.quantidade <= 1) return;
-    setPending(prev => ({
-      ...prev,
-      decreases: { ...prev.decreases, [group.key]: (prev.decreases[group.key] || 0) + 1 },
-      descriptions: [...prev.descriptions, `Quantidade diminuída: ${group.produto_nome} (-1)`],
-    }));
+  // Get logged user info for audit
+  const getAuditUser = () => {
+    const email = loggedUser?.email || loggedUser?.cpf || 'sistema';
+    const nome = loggedUser?.nome || null;
+    const cpf = loggedUser?.cpf || null;
+    return { email, nome, cpf };
   };
 
-  const handleDeleteGroup = (group: GroupedItem) => {
-    setPending(prev => ({
-      ...prev,
-      deletes: [...prev.deletes, ...group.itemIds],
-      decreases: (() => { const d = { ...prev.decreases }; delete d[group.key]; return d; })(),
-      descriptions: [...prev.descriptions, `Itens removidos: ${group.produto_nome} (${group.quantidade}x)`],
-    }));
-  };
-
-  const requestAuth = (action: 'save' | 'close') => {
-    setAuthAction(action);
-    setAuthCpf('');
-    setAuthSenha('');
-    setShowAuth(true);
-  };
-
-  const handleAuth = async () => {
-    const cpfClean = cleanCPF(authCpf);
-    if (!cpfClean || !authSenha) return;
-    if (cpfClean.length !== 11) {
-      toast({ title: 'CPF inválido', description: 'Informe os 11 dígitos do CPF.', variant: 'destructive' });
+  const handleSaveChanges = async () => {
+    if (!loggedUser) {
+      toast({ title: 'Usuário não autenticado', description: 'Faça login para realizar alterações.', variant: 'destructive' });
       return;
     }
-    setAuthLoading(true);
-    const result = await autenticarUsuario(cpfClean, authSenha);
-    setAuthLoading(false);
-    if (!result.success) {
-      toast({ title: 'Autenticação falhou', description: 'CPF ou senha incorretos.', variant: 'destructive' });
+    const { email, nome, cpf } = getAuditUser();
+    await executeSave(email, nome, cpf);
+  };
+
+  const handleCloseComanda = async (pagamentos: PagamentoSelecionado[]) => {
+    if (!loggedUser) {
+      toast({ title: 'Usuário não autenticado', description: 'Faça login para encerrar a comanda.', variant: 'destructive' });
       return;
     }
-    setShowAuth(false);
-    const email = result.email || cpfClean;
-    const nome = result.nome;
-
-    if (authAction === 'save') {
-      await executeSave(email, nome);
-    } else if (authAction === 'close') {
-      await executeClose(email, nome, pendingPagamentos);
-    }
+    const { email, nome, cpf } = getAuditUser();
+    await executeClose(email, nome, pagamentos, cpf);
   };
 
   const executeSave = async (email: string, nome?: string) => {
