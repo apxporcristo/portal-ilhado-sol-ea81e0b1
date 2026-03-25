@@ -67,8 +67,6 @@ export function usePrintJobs() {
 
   /** Impressão direta via Print Server HTTP local (sem fila) */
   const printDirect = useCallback(async (ip: string, port: number | string, conteudo: string): Promise<boolean> => {
-    const serverUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '');
-
     if (window.IS_ANDROID_APP === true && window.AndroidBridge?.smartPrint) {
       try {
         window.AndroidBridge.smartPrint(conteudo);
@@ -80,13 +78,32 @@ export function usePrintJobs() {
       }
     }
 
-    // Sem AndroidBridge disponível — impressão local indisponível
-    toast({
-      title: 'Impressão indisponível',
-      description: 'Impressão local indisponível neste dispositivo. Utilize o app auxiliar de impressão.',
-      variant: 'destructive',
-    });
-    return false;
+    // Tentar enviar via Print Server local salvo
+    const serverUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '');
+    if (!serverUrl) {
+      toast({ title: 'Impressão indisponível', description: 'Configure o Print Server Local nas configurações de impressora.', variant: 'destructive' });
+      return false;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await fetch(`${serverUrl}/print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, port: Number(port), data: conteudo }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      toast({ title: '✅ Enviado para impressora', description: `Dados enviados via Print Server.` });
+      return true;
+    } catch (e: any) {
+      const msg = e?.name === 'AbortError' ? 'Print Server não respondeu (timeout).' : 'Não foi possível conectar ao Print Server. Verifique se está rodando.';
+      toast({ title: 'Erro na impressão', description: msg, variant: 'destructive' });
+      return false;
+    } finally {
+      clearTimeout(timeout);
+    }
   }, []);
 
   return { jobs, loading, fetchJobs, createPrintJob, printDirect };
