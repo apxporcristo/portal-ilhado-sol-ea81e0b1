@@ -21,7 +21,7 @@ import { usePrinterContext } from '@/contexts/PrinterContext';
 import { useAndroidBridge, isAndroidApp } from '@/hooks/useAndroidBridge';
 import { PrintLayoutSettings } from '@/components/PrintLayoutSettings';
 import { FichaLayoutSettings } from '@/components/FichaLayoutSettings';
-import { usePrintJobs, getLocalPrintServerUrl, setLocalPrintServerUrl } from '@/hooks/usePrintJobs';
+import { usePrintJobs } from '@/hooks/usePrintJobs';
 
 interface PrinterFormData {
   nome: string;
@@ -50,7 +50,7 @@ export function PrinterSettings() {
 
   const { config, status, bluetoothDevices, updateConfig, saveConfig, scanBluetoothDevices, connectBluetooth, testConnection } = usePrinterContext();
   const androidBridge = useAndroidBridge();
-  const { jobs, loading: jobsLoading, fetchJobs, createPrintJob, printDirect } = usePrintJobs();
+  const { jobs, loading: jobsLoading, fetchJobs, createPrintJob } = usePrintJobs();
 
   const [activeTab, setActiveTab] = useState('impressoras');
   const [formOpen, setFormOpen] = useState(false);
@@ -58,7 +58,6 @@ export function PrinterSettings() {
   const [form, setForm] = useState<PrinterFormData>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [testingPrinterId, setTestingPrinterId] = useState<string | null>(null);
-  const [printServerUrl, setPrintServerUrl] = useState(getLocalPrintServerUrl());
 
   const buildTestContent = (imp: Impressora) => [
     '\x1B\x40', '\x1B\x61\x01', '\x1B\x45\x01',
@@ -70,17 +69,6 @@ export function PrinterSettings() {
     '================================\n',
     'Conexao OK!\n\n\n', '\x1D\x56\x00',
   ].join('');
-
-  /** Testa via Print Server local (direto) */
-  const testDirectPrint = useCallback(async (imp: Impressora) => {
-    if (imp.tipo !== 'rede' || !imp.ip) return;
-    setTestingPrinterId(imp.id);
-    try {
-      await printDirect(imp.ip, imp.porta || 9100, buildTestContent(imp));
-    } finally {
-      setTestingPrinterId(null);
-    }
-  }, [printDirect]);
 
   /** Envia teste para a fila do Supabase */
   const sendTestToQueue = useCallback(async (imp: Impressora) => {
@@ -223,55 +211,6 @@ export function PrinterSettings() {
               </div>
             )}
 
-            {/* Print Server URL config */}
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-primary" />
-                <Label className="font-semibold">Print Server Local</Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                IP do PC que roda o print_server.py na sua rede (ex: http://192.168.1.10:8787)
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  value={printServerUrl}
-                  onChange={(e) => setPrintServerUrl(e.target.value)}
-                  placeholder="http://192.168.1.10:8787"
-                  className="flex-1"
-                />
-                <Button size="sm" onClick={() => {
-                  setLocalPrintServerUrl(printServerUrl);
-                  toast({ title: '✅ Print Server salvo' });
-                }}>
-                  Salvar
-                </Button>
-                <Button size="sm" variant="outline" onClick={async () => {
-                  const url = printServerUrl.trim().replace(/\/+$/, '');
-                  if (!url) {
-                    toast({ title: '⚠️ Informe a URL do Print Server', variant: 'destructive' });
-                    return;
-                  }
-                  try {
-                    const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 5000);
-                    const res = await fetch(`${url}/status`, { signal: controller.signal });
-                    clearTimeout(timeout);
-                    if (res.ok) {
-                      toast({ title: '✅ Print Server conectado', description: 'Comunicação OK!' });
-                    } else {
-                      toast({ title: '⚠️ Print Server respondeu com erro', description: `Status ${res.status}`, variant: 'destructive' });
-                    }
-                  } catch (e: any) {
-                    const msg = e?.name === 'AbortError'
-                      ? 'Print Server não respondeu (timeout 5s).'
-                      : 'Não foi possível conectar. Verifique se o Print Server está rodando e acessível.';
-                    toast({ title: '❌ Conexão falhou', description: msg, variant: 'destructive' });
-                  }
-                }}>
-                  <CheckCircle className="mr-1 h-4 w-4" /> Testar
-                </Button>
-              </div>
-            </div>
 
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-sm">Lista de Impressoras</h3>
@@ -321,30 +260,16 @@ export function PrinterSettings() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-1 justify-end">
-                            {imp.tipo === 'rede' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-green-600"
-                                  onClick={() => testDirectPrint(imp)}
-                                  disabled={testingPrinterId === imp.id}
-                                  title="Imprimir direto (Print Server local)"
-                                >
-                                  {testingPrinterId === imp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-primary"
-                                  onClick={() => sendTestToQueue(imp)}
-                                  disabled={testingPrinterId === imp.id}
-                                  title="Enviar para fila (Supabase)"
-                                >
-                                  <List className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-primary"
+                              onClick={() => sendTestToQueue(imp)}
+                              disabled={testingPrinterId === imp.id}
+                              title="Enviar teste para fila (Supabase)"
+                            >
+                              {testingPrinterId === imp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(imp)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>

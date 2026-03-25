@@ -45,7 +45,7 @@ export default function FichasAdmin() {
   const impressorasAtivas = impressoras.filter(p => p.ativa);
 
   // Product form
-  const [prodForm, setProdForm] = useState({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '' });
+  const [prodForm, setProdForm] = useState({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '', imprimir_ficha: true });
   const [editProd, setEditProd] = useState<FichaProduto | null>(null);
   const [deleteProdId, setDeleteProdId] = useState<string | null>(null);
   const [filterAtivo, setFilterAtivo] = useState<'all' | 'true' | 'false'>('all');
@@ -178,6 +178,7 @@ export default function FichasAdmin() {
           forma_venda: prodForm.forma_venda,
           valor_por_kg: prodForm.forma_venda === 'por_peso' ? parseFloat(prodForm.valor_por_kg) || 0 : 0,
           obs: prodForm.obs.trim() || null,
+          imprimir_ficha: prodForm.imprimir_ficha,
         };
         if (isPrinted(editProd.id) && !isNameSimilar(editProd.nome_produto, prodForm.nome_produto.trim())) {
           toast({ title: 'Nome não pode ser alterado', description: 'Este produto já foi impresso. Apenas correções pequenas são permitidas.', variant: 'destructive' });
@@ -199,11 +200,12 @@ export default function FichasAdmin() {
           forma_venda: prodForm.forma_venda,
           valor_por_kg: prodForm.forma_venda === 'por_peso' ? parseFloat(prodForm.valor_por_kg) || 0 : 0,
           obs: prodForm.obs.trim() || null,
+          imprimir_ficha: prodForm.imprimir_ficha,
         } as any);
         setShowProdModal(false);
         toast({ title: 'Produto cadastrado!' });
       }
-      setProdForm({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '' });
+      setProdForm({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '', imprimir_ficha: true });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar produto', description: err?.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
@@ -223,6 +225,7 @@ export default function FichasAdmin() {
       forma_venda: p.forma_venda || 'unitario',
       valor_por_kg: p.valor_por_kg ? String(p.valor_por_kg) : '',
       obs: (p as any).obs || '',
+      imprimir_ficha: (p as any).imprimir_ficha ?? true,
     });
     setShowProdModal(true);
   };
@@ -527,7 +530,7 @@ export default function FichasAdmin() {
           <TabsContent value="produtos" className="mt-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Produtos cadastrados</h2>
-              <Button onClick={() => { setEditProd(null); setProdForm({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '' }); setShowProdModal(true); }}>
+              <Button onClick={() => { setEditProd(null); setProdForm({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '', imprimir_ficha: true }); setShowProdModal(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Incluir produto
               </Button>
@@ -822,6 +825,10 @@ export default function FichasAdmin() {
                 <Input type="number" min="0" step="0.01" value={prodForm.valor_por_kg} onChange={(e) => setProdForm(p => ({ ...p, valor_por_kg: e.target.value }))} placeholder="0.00" className="w-28" />
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <Switch checked={prodForm.imprimir_ficha} onCheckedChange={(v) => setProdForm(p => ({ ...p, imprimir_ficha: v }))} />
+              <Label>Imprimir ficha</Label>
+            </div>
             <div className="space-y-2">
               <Label>Observação <span className="text-muted-foreground text-xs">(opcional, aparece na ficha)</span></Label>
               <Input value={prodForm.obs} onChange={(e) => setProdForm(p => ({ ...p, obs: e.target.value }))} placeholder="Ex: Acompanha arroz e salada" maxLength={100} />
@@ -838,7 +845,7 @@ export default function FichasAdmin() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowProdModal(false); setEditProd(null); setProdForm({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '' }); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setShowProdModal(false); setEditProd(null); setProdForm({ categoria_id: '', nome_produto: '', valor: '', ativo: true, tem_complementos: false, printer_id: '', forma_venda: 'unitario', valor_por_kg: '', obs: '', imprimir_ficha: true }); }}>Cancelar</Button>
             <Button onClick={handleSaveProd} disabled={savingProd}>
               <Save className="h-4 w-4 mr-2" />
               {editProd ? 'Salvar alterações' : 'Cadastrar produto'}

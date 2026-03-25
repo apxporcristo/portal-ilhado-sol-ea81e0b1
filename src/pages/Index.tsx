@@ -36,7 +36,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useBalanca } from '@/hooks/useBalanca';
-import { ServeServiceDialog } from '@/components/ServeServiceDialog';
 
 
 const timeColors: Record<string, string> = {
@@ -63,13 +62,11 @@ const Index = () => {
   const { comandasAbertas } = useComandas();
   const navigate = useNavigate();
   const androidBridge = useAndroidBridge();
-  const { printDirect } = usePrintJobs();
+  const { createPrintJob } = usePrintJobs();
   const [showPrinterSelect, setShowPrinterSelect] = useState(false);
   const [availablePrinters, setAvailablePrinters] = useState<AvailablePrinter[]>([]);
   const [batchPrinting, setBatchPrinting] = useState(false);
   const [statsDialog, setStatsDialog] = useState<{ open: boolean; type: 'total' | 'livres' | 'usados' | 'reservados'; title: string }>({ open: false, type: 'total', title: '' });
-  const [showServeService, setShowServeService] = useState(false);
-
   const balanca = useBalanca();
   const userSession = useOptionalUserSession();
   const userAccess = userSession?.access;
@@ -168,14 +165,20 @@ const Index = () => {
           printSuccess = true;
         } else if (voucherPrinter?.tipo === 'rede' && voucherPrinter.ip) {
           const networkName = getNetworkName();
-          const wifiQrData = getWifiQrString();
           const now = new Date();
           const currentDate = now.toLocaleDateString('pt-BR');
           const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
           let allOk = true;
           for (const v of voucherData) {
             const texto = "VOUCHER DE ACESSO\n\n" + `Coloque no modo avião antes de acessar a rede "${networkName}"\n\n` + `Voucher: ${v.voucher_id}\n` + `Tempo de conexão: ${v.tempo_validade}\n` + `Data: ${currentDate} ${currentTime}`;
-            const ok = await printDirect(voucherPrinter.ip, voucherPrinter.porta || '9100', texto);
+            const ok = await createPrintJob({
+              printer_id: voucherPrinter.id || '',
+              printer_name: voucherPrinter.nome,
+              device_ip: voucherPrinter.ip,
+              conteudo: texto,
+              tipo_documento: 'voucher',
+              referencia_id: v.voucher_id,
+            });
             if (!ok) { allOk = false; break; }
           }
           if (allOk) printSuccess = true;
@@ -233,7 +236,7 @@ const Index = () => {
     } finally {
       setBatchPrinting(false);
     }
-  }, [cart, getFreVouchersBatch, markVouchersPreReservado, createVoucherData, printData, isBluetoothConnected, reconnectBluetooth, scanBluetoothDevices, connectBluetooth, androidBridge, getVoucherPrinter, printDirect]);
+  }, [cart, getFreVouchersBatch, markVouchersPreReservado, createVoucherData, printData, isBluetoothConnected, reconnectBluetooth, scanBluetoothDevices, connectBluetooth, androidBridge, getVoucherPrinter, createPrintJob]);
 
   const handleBatchPrint = useCallback(async () => {
     const { printer: voucherPrinter, error: voucherError } = getVoucherPrinter();
@@ -516,27 +519,7 @@ const Index = () => {
                 </Card>
               )}
 
-              {/* Serve Service - aparece quando balança está configurada */}
-              {!balanca.loading && balanca.config.id && (
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-2 hover:border-primary bg-gradient-to-r from-primary/5 to-primary/10"
-                  onClick={() => setShowServeService(true)}
-                >
-                  <CardContent className="flex items-center justify-between gap-3 p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-primary/10 rounded-xl">
-                        <Scale className="h-8 w-8 text-primary" />
-                      </div>
-                      <div>
-                        <span className="text-base font-semibold text-foreground">SERVE SERVICE</span>
-                        <p className="text-sm text-muted-foreground">
-                          Balança • R$ {(balanca.config.valor_peso || 0).toFixed(2)}/kg
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Serve Service removido da tela inicial - agora está dentro de Fichas */}
 
             </div>
           </div>
@@ -553,7 +536,7 @@ const Index = () => {
 
       <PrinterSelectDialog open={showPrinterSelect} onOpenChange={setShowPrinterSelect} printers={availablePrinters} onSelect={handlePrinterSelected} />
       <StatsDetailDialog open={statsDialog.open} onOpenChange={(open) => setStatsDialog(prev => ({ ...prev, open }))} title={statsDialog.title} type={statsDialog.type} stats={stats} />
-      <ServeServiceDialog open={showServeService} onOpenChange={setShowServeService} onAddToCart={(item) => cart.addItem(item.tempo, { type: 'ficha', fichaType: 'comida', fichaTexto: item.fichaTexto, fichaValor: item.fichaValor })} />
+      
     </div>
   );
 };

@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Printer, ShoppingCart, Trash2, Minus, CreditCard, ClipboardList, Scale } from 'lucide-react';
+import { ArrowLeft, Search, Printer, ShoppingCart, Trash2, Minus, CreditCard, ClipboardList, Scale, Bluetooth, BluetoothSearching } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useFichasConsumo, FichaAtiva, FichaProduto } from '@/hooks/useFichasConsumo';
 import { useComplementos, Complemento, ComplementoItem, GrupoComplemento } from '@/hooks/useComplementos';
@@ -13,6 +13,8 @@ import { getPrintLayoutConfig } from '@/hooks/usePrintLayout';
 import { usePrinterContext } from '@/contexts/PrinterContext';
 import { useAndroidBridge } from '@/hooks/useAndroidBridge';
 import { useOptionalUserSession } from '@/contexts/UserSessionContext';
+import { useImpressoras, Impressora } from '@/hooks/useImpressoras';
+import { usePrintJobs, CreatePrintJobParams } from '@/hooks/usePrintJobs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -57,12 +59,16 @@ export default function FichasLista() {
   const userSession = useOptionalUserSession();
   const userName = userSession?.access?.nome || '';
   const { comandasAbertas, lancarItens, refetch: refetchComandas } = useComandas();
+  const { impressoras } = useImpressoras();
+  const { createPrintJob } = usePrintJobs();
+  const impressorasAtivas = impressoras.filter(p => p.ativa);
   const balanca = useBalanca();
   const { lerPeso } = balanca;
   const [search, setSearch] = useState('');
   const [showServeService, setShowServeService] = useState(false);
   const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [showPrinterSelectModal, setShowPrinterSelectModal] = useState(false);
 
   // Peso manual input
   const [showPesoModal, setShowPesoModal] = useState(false);
@@ -335,13 +341,28 @@ export default function FichasLista() {
       setDocumentoCliente('');
       setPrintDialog(true);
     } else {
-      executePrint();
+      // Show printer selection if there are registered printers
+      if (impressorasAtivas.length > 0) {
+        setShowPrinterSelectModal(true);
+      } else {
+        executePrint();
+      }
     }
   };
 
   const handleConfirmPrint = () => {
     setPrintDialog(false);
-    executePrint();
+    if (impressorasAtivas.length > 0) {
+      setShowPrinterSelectModal(true);
+    } else {
+      executePrint();
+    }
+  };
+
+  const handleSelectPrinterAndPrint = (imp: Impressora) => {
+    setShowPrinterSelectModal(false);
+    executePrint(imp);
+  };
   };
 
   const buildItemsText = (item: CartItem): string => {
@@ -460,7 +481,7 @@ export default function FichasLista() {
     }
   };
 
-  const executePrint = async () => {
+  const executePrint = async (selectedPrinter?: Impressora) => {
     setPrinting(true);
     try {
       const now = new Date();
@@ -504,11 +525,39 @@ export default function FichasLista() {
         });
       }
 
+      // Filter items with imprimir_ficha = true for actual printing
+      const printableItems = cart.filter(item => {
+        const produto = produtos.find(p => p.id === item.ficha.id);
+        return (produto as any)?.imprimir_ficha !== false;
+      });
+
       let printSuccess = false;
 
+      if (printableItems.length === 0) {
+        // Nothing to print but sale was registered
+        printSuccess = true;
+      } else if (selectedPrinter) {
+        // Send to print_jobs in Supabase
+        for (const item of printableItems) {
+          for (let i = 0; i < item.quantidade; i++) {
+            const escposData = generateFichaConsumoEscPos(item, dateStr, timeStr);
+            const conteudo = new TextDecoder().decode(escposData);
+            await createPrintJob({
+              printer_id: selectedPrinter.id,
+              printer_name: selectedPrinter.nome,
+              device_ip: selectedPrinter.ip || undefined,
+              device_mac: selectedPrinter.bluetooth_mac || undefined,
+              conteudo,
+              tipo_documento: 'ficha_consumo',
+              referencia_id: item.ficha.id,
+            });
+          }
+        }
+        printSuccess = true;
+      }
       // Priority 1: Android Bridge
-      if (window.AndroidBridge?.smartPrintVoucher) {
-        for (const item of cart) {
+      else if (window.AndroidBridge?.smartPrintVoucher) {
+        for (const item of printableItems) {
           for (let i = 0; i < item.quantidade; i++) {
             let fichaText = 'Ficha de consumo\n';
             fichaText += `Categoria: ${item.ficha.categoria_nome}\n`;
@@ -562,7 +611,7 @@ export default function FichasLista() {
           }
         }
         let allSuccess = true;
-        for (const item of cart) {
+        for (const item of printableItems) {
           for (let i = 0; i < item.quantidade; i++) {
             const escposData = generateFichaConsumoEscPos(item, dateStr, timeStr);
             const success = await printData(escposData);
@@ -574,22 +623,7 @@ export default function FichasLista() {
           toast({ title: 'Erro na impressão Bluetooth', description: 'Falha ao enviar dados para a impressora.', variant: 'destructive' });
         }
       }
-      // Priority 3: Network printer
-      else if (config.type === 'network' && config.networkIp) {
-        let allSuccess = true;
-        for (const item of cart) {
-          for (let i = 0; i < item.quantidade; i++) {
-            const escposData = generateFichaConsumoEscPos(item, dateStr, timeStr);
-            const success = await printData(escposData);
-            if (!success) { allSuccess = false; break; }
-          }
-          if (!allSuccess) break;
-        }
-        if (allSuccess) { printSuccess = true; } else {
-          toast({ title: 'Erro na impressão', description: 'Falha ao imprimir via rede.', variant: 'destructive' });
-        }
-      }
-      // Priority 4: Browser fallback
+      // Priority 3: Browser fallback
       else {
         printViaBrowser(dateStr, timeStr);
         printSuccess = true;
@@ -1016,6 +1050,39 @@ export default function FichasLista() {
           }]);
         }}
       />
+
+      {/* Printer Selection Modal */}
+      <Dialog open={showPrinterSelectModal} onOpenChange={setShowPrinterSelectModal}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5" />
+              Selecionar Impressora
+            </DialogTitle>
+            <DialogDescription>Escolha a impressora para enviar as fichas.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-2">
+            {impressorasAtivas.map((imp) => (
+              <Button
+                key={imp.id}
+                variant="outline"
+                className="w-full justify-start gap-3 h-14"
+                onClick={() => handleSelectPrinterAndPrint(imp)}
+              >
+                <div className="text-left">
+                  <div className="font-medium">{imp.nome}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {imp.tipo === 'rede' ? `${imp.ip}:${imp.porta || '9100'}` : imp.bluetooth_nome || 'Bluetooth'}
+                  </div>
+                </div>
+              </Button>
+            ))}
+            <Button variant="ghost" className="w-full" onClick={() => { setShowPrinterSelectModal(false); executePrint(); }}>
+              Imprimir sem selecionar (padrão)
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

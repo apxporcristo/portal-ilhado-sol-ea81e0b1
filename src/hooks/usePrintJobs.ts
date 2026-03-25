@@ -9,17 +9,24 @@ export interface PrintJob {
   formato: string;
   status: 'pendente' | 'imprimindo' | 'concluido' | 'erro';
   erro: string | null;
+  tipo_documento?: string;
+  referencia_id?: string;
+  printer_name?: string;
+  device_ip?: string;
+  device_mac?: string;
   created_at: string;
   updated_at: string;
 }
 
-/** Retorna a URL do print server local salva em localStorage */
-export function getLocalPrintServerUrl(): string {
-  return localStorage.getItem('print_server_url') || '';
-}
-
-export function setLocalPrintServerUrl(url: string) {
-  localStorage.setItem('print_server_url', url);
+export interface CreatePrintJobParams {
+  printer_id: string;
+  printer_name?: string;
+  device_ip?: string;
+  device_mac?: string;
+  conteudo: string;
+  formato?: string;
+  tipo_documento?: string;
+  referencia_id?: string;
 }
 
 export function usePrintJobs() {
@@ -48,15 +55,44 @@ export function usePrintJobs() {
     fetchJobs();
   }, [fetchJobs]);
 
-  const createPrintJob = useCallback(async (printerId: string, conteudo: string, formato = 'escpos'): Promise<boolean> => {
+  const createPrintJob = useCallback(async (
+    printerIdOrParams: string | CreatePrintJobParams,
+    conteudo?: string,
+    formato = 'escpos'
+  ): Promise<boolean> => {
     try {
-      const encoded = btoa(unescape(encodeURIComponent(conteudo)));
       const supabase = await getSupabaseClient();
+      let insertData: any;
+
+      if (typeof printerIdOrParams === 'string') {
+        const encoded = btoa(unescape(encodeURIComponent(conteudo || '')));
+        insertData = {
+          printer_id: printerIdOrParams,
+          conteudo: encoded,
+          formato,
+          status: 'pendente',
+        };
+      } else {
+        const params = printerIdOrParams;
+        const encoded = btoa(unescape(encodeURIComponent(params.conteudo)));
+        insertData = {
+          printer_id: params.printer_id,
+          conteudo: encoded,
+          formato: params.formato || 'escpos',
+          status: 'pendente',
+          ...(params.printer_name && { printer_name: params.printer_name }),
+          ...(params.device_ip && { device_ip: params.device_ip }),
+          ...(params.device_mac && { device_mac: params.device_mac }),
+          ...(params.tipo_documento && { tipo_documento: params.tipo_documento }),
+          ...(params.referencia_id && { referencia_id: params.referencia_id }),
+        };
+      }
+
       const { error } = await supabase
         .from('print_jobs')
-        .insert({ printer_id: printerId, conteudo: encoded, formato, status: 'pendente' } as any);
+        .insert(insertData as any);
       if (error) throw error;
-      toast({ title: '📋 Tarefa enviada para a fila', description: 'Status: PENDENTE. Aguardando o Print Server processar.' });
+      toast({ title: '📋 Tarefa enviada para a fila', description: 'Status: PENDENTE. Aguardando processamento.' });
       await fetchJobs();
       return true;
     } catch (e) {
@@ -65,46 +101,5 @@ export function usePrintJobs() {
     }
   }, [fetchJobs]);
 
-  /** Impressão direta via Print Server HTTP local (sem fila) */
-  const printDirect = useCallback(async (ip: string, port: number | string, conteudo: string): Promise<boolean> => {
-    if (window.IS_ANDROID_APP === true && window.AndroidBridge?.smartPrint) {
-      try {
-        window.AndroidBridge.smartPrint(conteudo);
-        toast({ title: '✅ Enviado para o app Android', description: 'A impressão foi enviada pelo AndroidBridge.' });
-        return true;
-      } catch (e) {
-        toast({ title: '❌ Erro na impressão direta', description: (e as Error).message, variant: 'destructive' });
-        return false;
-      }
-    }
-
-    // Tentar enviar via Print Server local salvo
-    const serverUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '');
-    if (!serverUrl) {
-      toast({ title: 'Impressão indisponível', description: 'Configure o Print Server Local nas configurações de impressora.', variant: 'destructive' });
-      return false;
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    try {
-      const res = await fetch(`${serverUrl}/print`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip, port: Number(port), data: conteudo }),
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error(`Status ${res.status}`);
-      toast({ title: '✅ Enviado para impressora', description: `Dados enviados via Print Server.` });
-      return true;
-    } catch (e: any) {
-      const msg = e?.name === 'AbortError' ? 'Print Server não respondeu (timeout).' : 'Não foi possível conectar ao Print Server. Verifique se está rodando.';
-      toast({ title: 'Erro na impressão', description: msg, variant: 'destructive' });
-      return false;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }, []);
-
-  return { jobs, loading, fetchJobs, createPrintJob, printDirect };
+  return { jobs, loading, fetchJobs, createPrintJob };
 }
