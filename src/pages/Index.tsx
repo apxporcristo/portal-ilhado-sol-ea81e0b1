@@ -8,7 +8,6 @@ import { useImpressoras } from '@/hooks/useImpressoras';
 import { useVoucherCart } from '@/hooks/useVoucherCart';
 import { useAndroidBridge } from '@/hooks/useAndroidBridge';
 import { usePrintJobs } from '@/hooks/usePrintJobs';
-import { getNetworkName, getWifiQrString } from '@/hooks/useNetworkName';
 import { printVoucher } from '@/lib/voucher-utils';
 import { printVouchersBatch } from '@/lib/print-browser';
 import { getNetworkName, getWifiQrString } from '@/hooks/useNetworkName';
