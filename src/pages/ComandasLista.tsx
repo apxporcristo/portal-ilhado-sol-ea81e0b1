@@ -239,7 +239,44 @@ export default function ComandasLista() {
       </Dialog>
 
       {/* Comanda Detalhe */}
-      <ComandaDetalhe comanda={selectedComanda} open={showDetalhe} onOpenChange={setShowDetalhe} onClosed={() => refetch()} />
+      <ComandaDetalhe comanda={selectedComanda} open={showDetalhe} onOpenChange={setShowDetalhe} onPrintItems={handlePrintItems} onClosed={() => refetch()} />
+
+      {/* Printer select dialog */}
+      <Dialog open={showPrinterSelect} onOpenChange={setShowPrinterSelect}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5" />
+              Selecionar Impressora
+            </DialogTitle>
+            <DialogDescription>
+              Escolha em qual impressora deseja imprimir a comanda.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-2">
+            {impressorasAtivas.map((imp) => (
+              <Button
+                key={imp.id}
+                variant="outline"
+                className="w-full justify-start gap-3 h-14"
+                onClick={() => executePrintComanda(imp)}
+              >
+                {imp.tipo === 'bluetooth' ? (
+                  <Bluetooth className="h-5 w-5 text-blue-500" />
+                ) : (
+                  <Wifi className="h-5 w-5 text-green-500" />
+                )}
+                <div className="text-left">
+                  <div className="font-medium">{imp.nome}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {imp.tipo === 'bluetooth' ? 'Bluetooth' : `Rede ${imp.ip || ''}`}
+                  </div>
+                </div>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
