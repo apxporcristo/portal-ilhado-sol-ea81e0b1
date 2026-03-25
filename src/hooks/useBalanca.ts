@@ -344,15 +344,7 @@ export function useBalanca() {
     return window.AndroidBridge?.isScaleConnected?.() ?? false;
   }, []);
 
-  const listarDispositivosPareadosAndroid = useCallback((): Array<{ name: string; address: string }> => {
-    try {
-      const raw = window.AndroidBridge?.listPairedDevices?.();
-      if (!raw) return [];
-      return JSON.parse(raw);
-    } catch {
-      return [];
-    }
-  }, []);
+  // (listarDispositivosPareadosAndroid moved above parearNovoDispositivo)
 
   // Main read function - prioritizes AndroidBridge, then persistent BT/serial
   const lerPeso = useCallback(async (retries = 3): Promise<number | null> => {
