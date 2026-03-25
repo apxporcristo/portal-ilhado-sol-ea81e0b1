@@ -363,7 +363,6 @@ export default function FichasLista() {
     setShowPrinterSelectModal(false);
     executePrint(imp);
   };
-  };
 
   const buildItemsText = (item: CartItem): string => {
     if (item.selectedItems.length === 0) return '';
