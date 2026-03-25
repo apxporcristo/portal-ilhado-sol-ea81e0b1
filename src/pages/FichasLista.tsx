@@ -535,29 +535,54 @@ export default function FichasLista() {
   };
 
   const sendToPrinterDirect = async (printer: Impressora, items: CartItem[], dateStr: string, timeStr: string) => {
-    if (window.AndroidBridge?.smartPrint) {
-      for (const item of items) {
-        for (let i = 0; i < item.quantidade; i++) {
-          const escposData = generateFichaConsumoEscPos(item, dateStr, timeStr);
-          const payload = JSON.stringify({
-            type: printer.tipo === 'bluetooth' ? 'bluetooth' : 'network',
-            address: printer.tipo === 'rede' ? `${printer.ip}:${printer.porta || '9100'}` : (printer.bluetooth_mac || printer.bluetooth_nome || printer.nome),
-            data: Array.from(escposData),
-          });
-          window.AndroidBridge.smartPrint(payload);
-        }
-      }
-    } else {
-      // Fallback: deep link for auxiliary app
-      for (const item of items) {
-        for (let i = 0; i < item.quantidade; i++) {
-          let fichaText = `Ficha de consumo\n${item.ficha.nome_produto}\n`;
-          if (item.selectedItems.length > 0) {
-            fichaText += item.selectedItems.map(si => `${si.item.nome}`).join(', ') + '\n';
+    for (const item of items) {
+      for (let i = 0; i < item.quantidade; i++) {
+        const escposData = generateFichaConsumoEscPos(item, dateStr, timeStr);
+
+        if (printer.tipo === 'rede') {
+          // Network printer: use edge function
+          try {
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/print-network`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                ip: printer.ip,
+                port: parseInt(printer.porta || '9100', 10),
+                data: Array.from(escposData),
+              }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+              throw new Error(result.error || 'Erro ao enviar para impressora de rede');
+            }
+          } catch (err) {
+            console.error('Erro impressão rede:', err);
+            toast({ title: 'Erro na impressão', description: (err as Error).message, variant: 'destructive' });
           }
-          fichaText += `${dateStr} ${timeStr}`;
-          const printerAddr = printer.tipo === 'rede' ? `${printer.ip}:${printer.porta || '9100'}` : (printer.bluetooth_mac || printer.nome);
-          window.location.href = "voucherilha://print?text=" + encodeURIComponent(fichaText) + "&printer=" + encodeURIComponent(printerAddr);
+        } else if (printer.tipo === 'bluetooth') {
+          // Bluetooth printer: use AndroidBridge or Web Bluetooth
+          if (window.AndroidBridge?.smartPrint) {
+            const payload = JSON.stringify({
+              type: 'bluetooth',
+              address: printer.bluetooth_mac || printer.bluetooth_nome || printer.nome,
+              data: Array.from(escposData),
+            });
+            window.AndroidBridge.smartPrint(payload);
+          } else if (isBluetoothConnected()) {
+            await printData(escposData);
+          } else {
+            // Try reconnect then print
+            const char = await silentReconnectBluetooth();
+            if (char) {
+              await printData(escposData);
+            } else {
+              toast({ title: 'Bluetooth não conectado', description: 'Não foi possível conectar à impressora Bluetooth.', variant: 'destructive' });
+              return;
+            }
+          }
         }
       }
     }
