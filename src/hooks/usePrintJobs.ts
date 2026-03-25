@@ -57,10 +57,30 @@ export function usePrintJobs() {
     fetchJobs();
   }, [fetchJobs]);
 
+  const resolveDeviceCode = useCallback(async (printerId: string, explicitCode?: string): Promise<string | null> => {
+    if (explicitCode) return explicitCode;
+    try {
+      const supabase = await getSupabaseClient();
+      const { data } = await supabase
+        .from('devices' as any)
+        .select('device_code')
+        .eq('printer_id', printerId)
+        .eq('ativo', true)
+        .limit(1);
+      const code = (data as any[])?.[0]?.device_code || null;
+      console.log('[PrintJob] device_code resolvido:', code, 'para printer_id:', printerId);
+      return code;
+    } catch (e) {
+      console.warn('[PrintJob] Falha ao resolver device_code:', e);
+      return null;
+    }
+  }, []);
+
   const createPrintJob = useCallback(async (params: CreatePrintJobParams): Promise<boolean> => {
     try {
       const supabase = await getSupabaseClient();
       const encoded = btoa(unescape(encodeURIComponent(params.conteudo)));
+      const deviceCode = await resolveDeviceCode(params.printer_id, params.target_device_code);
       const insertData: Record<string, any> = {
         printer_id: params.printer_id,
         conteudo: encoded,
@@ -70,13 +90,14 @@ export function usePrintJobs() {
       if (params.printer_name) insertData.printer_name = params.printer_name;
       if (params.device_ip) insertData.device_ip = params.device_ip;
       if (params.device_mac) insertData.device_mac = params.device_mac;
-      if (params.target_device_code) insertData.target_device_code = params.target_device_code;
+      if (deviceCode) insertData.target_device_code = deviceCode;
       if (params.tipo_documento) insertData.tipo_documento = params.tipo_documento;
       if (params.referencia_id) insertData.referencia_id = params.referencia_id;
 
       console.log('[PrintJob] Criando job:', {
         printer_id: params.printer_id,
         printer_name: params.printer_name,
+        target_device_code: deviceCode,
         tipo_documento: params.tipo_documento,
         referencia_id: params.referencia_id,
         formato: params.formato || 'escpos',
@@ -99,7 +120,7 @@ export function usePrintJobs() {
       toast({ title: '❌ Erro ao criar tarefa de impressão', description: (e as Error).message, variant: 'destructive' });
       return false;
     }
-  }, [fetchJobs]);
+  }, [fetchJobs, resolveDeviceCode]);
 
   /**
    * Helper: create a print job from raw ESC/POS binary data (Uint8Array).
