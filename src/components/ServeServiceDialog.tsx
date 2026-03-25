@@ -107,27 +107,25 @@ export function ServeServiceDialog({ open, onOpenChange, onAddToCart }: ServeSer
             </Button>
           </div>
 
-          {/* Fallback for BT - show appropriate message */}
-          {config.tipo_conexao === 'bluetooth' && (status === 'falha' || status === 'desconectada') && (
-            <>
-              {window.IS_ANDROID_APP ? (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => connectBluetoothWithRetries()} className="flex-1">
-                    <Bluetooth className="h-4 w-4 mr-2" />
-                    Reconectar
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => parearNovoDispositivo()} className="flex-1">
-                    <BluetoothSearching className="h-4 w-4 mr-2" />
-                    Parear novo
-                  </Button>
-                </div>
-              ) : (
-                <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Bluetooth não suportado no navegador</p>
-                  <p>O Web Bluetooth possui limitações e não conecta em balanças como a sua. Use o <strong>app Android auxiliar</strong> para leitura automática, ou digite o peso manualmente abaixo.</p>
-                </div>
-              )}
-            </>
+          {/* BT Classic scales require Android app - show guidance */}
+          {config.tipo_conexao === 'bluetooth' && !window.IS_ANDROID_APP && (
+            <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Balança Bluetooth Classic (SPP)</p>
+              <p>Balanças seriais usam Bluetooth Classic, que <strong>não é suportado</strong> pelo Chrome/navegador. Use o <strong>app Android auxiliar</strong> para leitura automática, ou digite o peso manualmente abaixo.</p>
+            </div>
+          )}
+
+          {config.tipo_conexao === 'bluetooth' && window.IS_ANDROID_APP && (status === 'falha' || status === 'desconectada') && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => connectBluetoothWithRetries()} className="flex-1">
+                <Bluetooth className="h-4 w-4 mr-2" />
+                Reconectar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => parearNovoDispositivo()} className="flex-1">
+                <BluetoothSearching className="h-4 w-4 mr-2" />
+                Parear novo
+              </Button>
+            </div>
           )}
 
           {peso !== null ? (
