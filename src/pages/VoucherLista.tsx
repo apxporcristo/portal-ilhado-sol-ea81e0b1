@@ -6,7 +6,7 @@ import { usePrinterContext } from '@/contexts/PrinterContext';
 import { useImpressoras } from '@/hooks/useImpressoras';
 import { useVoucherCart } from '@/hooks/useVoucherCart';
 import { useAndroidBridge } from '@/hooks/useAndroidBridge';
-import { usePrintJobs } from '@/hooks/usePrintJobs';
+
 import { printVouchersBatch } from '@/lib/print-browser';
 import { getNetworkName, getWifiQrString } from '@/hooks/useNetworkName';
 import { PrinterSelectDialog, AvailablePrinter } from '@/components/PrinterSelectDialog';
