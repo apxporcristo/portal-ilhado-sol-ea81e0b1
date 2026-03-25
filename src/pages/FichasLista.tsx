@@ -992,6 +992,30 @@ export default function FichasLista() {
         confirmText="Sim, incluir"
         cancelText="Não"
       />
+
+      <ServeServiceDialog
+        open={showServeService}
+        onOpenChange={setShowServeService}
+        onAddToCart={(item) => {
+          const serveServiceFicha: FichaAtiva = {
+            id: `serve_service_${Date.now()}`,
+            nome_produto: item.fichaTexto,
+            valor: item.fichaValor,
+            categoria_id: '',
+            nome_categoria: 'Serve Service',
+            categoria_nome: 'Serve Service',
+            exigir_dados_cliente: true,
+            exigir_dados_atendente: true,
+          };
+          setCart(prev => [...prev, {
+            ficha: serveServiceFicha,
+            quantidade: 1,
+            selectedItems: [],
+            peso: parseFloat(item.tempo.match(/[\d.]+/)?.[0] || '0'),
+            valorPorKg: balanca.config.valor_peso || 0,
+          }]);
+        }}
+      />
     </div>
   );
 }
