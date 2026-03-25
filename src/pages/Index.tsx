@@ -420,6 +420,10 @@ const Index = () => {
                   Usuários
                 </TabsTrigger>
                 <TabsTrigger value="settings">Configurações</TabsTrigger>
+                <TabsTrigger value="auditoria" className="flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  Auditoria
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="import" className="mt-6">
