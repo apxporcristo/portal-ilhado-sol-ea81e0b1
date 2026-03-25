@@ -624,8 +624,12 @@ export function usePrinter() {
     const encoder = new TextEncoder();
 
 
-    // Determine font size command based on voucherIdFontSize
-    const useDoubleSize = layout.voucherIdFontSize >= 10;
+    // Determine ESC/POS size commands from layout config
+    const titleSizeCmd = escposSizeCmd(layout.titleFontSize ?? 10);
+    const voucherIdSizeCmd = escposSizeCmd(layout.voucherIdFontSize ?? 15);
+    const messageSizeCmd = escposSizeCmd(layout.messageFontSize ?? 7);
+    const tempoSizeCmd = escposSizeCmd(layout.tempoFontSize ?? 8);
+    const dateSizeCmd = escposSizeCmd(layout.dateFontSize ?? 6);
 
     // Check if tempo is less than 1 hour to hide airplane mode instructions
     const tempoNum = parseInt(tempo) || 0;
@@ -634,6 +638,7 @@ export function usePrinter() {
     const instructionBytes: number[] = [];
     if (!isLessThanOneHour) {
       instructionBytes.push(
+        ...messageSizeCmd,
         ...ESC_POS.ALIGN_LEFT,
         ...encoder.encode('Ative o modo aviao,'),
         0x0A,
@@ -643,14 +648,17 @@ export function usePrinter() {
         0x0A,
         ...encoder.encode('do modo aviao.'),
         0x0A,
+        ...ESC_POS.SIZE_NORMAL,
         0x0A,
         0x0A,
       );
     } else {
       instructionBytes.push(
+        ...messageSizeCmd,
         ...ESC_POS.ALIGN_LEFT,
         ...encoder.encode(`Acesse a REDE ${networkName}.`),
         0x0A,
+        ...ESC_POS.SIZE_NORMAL,
         0x0A,
       );
     }
@@ -669,15 +677,15 @@ export function usePrinter() {
       }
     }
 
-    const voucherIdSizeCmd = useDoubleSize ? ESC_POS.SIZE_DOUBLE : ESC_POS.SIZE_NORMAL;
-
     // Build parts separately to avoid spread on huge arrays
     const header = [
       ...ESC_POS.INIT,
       ...ESC_POS.ALIGN_CENTER,
+      ...titleSizeCmd,
       ...ESC_POS.BOLD_ON,
       ...encoder.encode('VOUCHER DE ACESSO'),
       0x0A,
+      ...ESC_POS.SIZE_NORMAL,
       0x0A,
       ...ESC_POS.BOLD_OFF,
     ];
@@ -691,12 +699,16 @@ export function usePrinter() {
       ...ESC_POS.SIZE_NORMAL,
       ...ESC_POS.BOLD_OFF,
       0x0A,
+      ...tempoSizeCmd,
       ...encoder.encode(`Tempo de conexao: ${tempo}`),
       0x0A,
+      ...ESC_POS.SIZE_NORMAL,
       0x0A,
       ...instructionBytes,
       ...ESC_POS.ALIGN_CENTER,
+      ...dateSizeCmd,
       ...encoder.encode(`Data: ${currentDate} ${currentTime}`),
+      ...ESC_POS.SIZE_NORMAL,
       ...ESC_POS.FEED,
       ...ESC_POS.CUT,
     ];
