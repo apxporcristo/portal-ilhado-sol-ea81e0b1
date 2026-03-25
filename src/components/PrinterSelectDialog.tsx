@@ -11,6 +11,8 @@ import { Bluetooth, Wifi, Printer } from 'lucide-react';
 export interface AvailablePrinter {
   type: 'bluetooth' | 'network' | 'bluetooth_local';
   name: string;
+  ip?: string;
+  port?: string;
 }
 
 interface PrinterSelectDialogProps {

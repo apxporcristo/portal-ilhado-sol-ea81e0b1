@@ -106,7 +106,6 @@ export default function VoucherLista() {
         }
         printSuccess = true;
       } else if (printer?.type === 'network' || printer?.type === 'bluetooth_local') {
-        // Rede e Bluetooth local: enviar via AndroidBridge ou deep link
         if (window.AndroidBridge?.smartPrint) {
           for (const v of voucherData) {
             const escposData = await createVoucherData(v.voucher_id, v.tempo_validade);
@@ -118,8 +117,29 @@ export default function VoucherLista() {
             window.AndroidBridge.smartPrint(payload);
           }
           printSuccess = true;
+        } else if (printer?.type === 'network' && printer.ip) {
+          // Impressão via rede usando supabase.functions.invoke
+          try {
+            const { getSupabaseClient } = await import('@/hooks/useVouchers');
+            const sbClient = await getSupabaseClient();
+            for (const v of voucherData) {
+              const escposData = await createVoucherData(v.voucher_id, v.tempo_validade);
+              const portNum = parseInt(printer.port || '9100', 10);
+              console.log('[Voucher Print] Rede - IP:', printer.ip, 'Porta:', portNum, 'bytes:', escposData.length);
+              const { data: result, error: fnError } = await sbClient.functions.invoke('print-network', {
+                body: { ip: printer.ip, port: portNum, data: Array.from(escposData) },
+              });
+              console.log('[Voucher Print] Resposta rede:', result, 'erro:', fnError);
+              if (fnError) throw new Error(fnError.message || 'Erro ao enviar para impressora de rede');
+              if (result?.error) throw new Error(result.error);
+            }
+            printSuccess = true;
+          } catch (err) {
+            console.error('[Voucher Print] Erro impressão rede:', err);
+            toast({ title: 'Erro na impressão', description: (err as Error).message, variant: 'destructive' });
+          }
         } else {
-          // Tentar deep link para app auxiliar
+          // Fallback deep link
           for (const v of voucherData) {
             const texto = `VOUCHER DE ACESSO\nVoucher: ${v.voucher_id}\nTempo: ${v.tempo_validade}`;
             window.location.href = "voucherilha://print?text=" + encodeURIComponent(texto) + "&printer=" + encodeURIComponent(printer.name);
