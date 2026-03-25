@@ -76,7 +76,57 @@ export default function ComandasLista() {
     }
   };
 
-  if (loading) {
+  const handlePrintItems = useCallback((items: ComandaItem[], comanda: Comanda) => {
+    if (impressorasAtivas.length === 0) {
+      toast({ title: 'Nenhuma impressora cadastrada', description: 'Cadastre uma impressora nas configurações.', variant: 'destructive' });
+      return;
+    }
+    setPendingPrintItems({ items, comanda });
+    setShowPrinterSelect(true);
+  }, [impressorasAtivas]);
+
+  const executePrintComanda = useCallback(async (printer: Impressora) => {
+    setShowPrinterSelect(false);
+    if (!pendingPrintItems) return;
+    const { items, comanda } = pendingPrintItems;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR');
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    let content = `Comanda #${comanda.numero}\n`;
+    if (comanda.nome_cliente) content += `Cliente: ${comanda.nome_cliente}\n`;
+    content += `${dateStr} ${timeStr}\n`;
+    content += '--------------------------------\n';
+    for (const item of items) {
+      content += `${item.quantidade}x ${normalize(item.produto_nome)} R$ ${Number(item.valor_total).toFixed(2).replace('.', ',')}\n`;
+    }
+    const total = items.reduce((s, i) => s + Number(i.valor_total), 0);
+    content += '--------------------------------\n';
+    content += `Total: R$ ${total.toFixed(2).replace('.', ',')}\n`;
+
+    console.log('[Comanda Print] Impressora:', printer.nome, 'id:', printer.id);
+    console.log('[Comanda Print] Conteúdo length:', content.length);
+
+    const ok = await createPrintJob({
+      printer_id: printer.id,
+      printer_name: printer.nome,
+      device_ip: printer.ip || undefined,
+      conteudo: content,
+      formato: 'text',
+      tipo_documento: 'comanda',
+      referencia_id: comanda.id,
+    });
+
+    console.log('[Comanda Print] Resultado:', ok);
+
+    if (ok) {
+      toast({ title: 'Enviado para fila!', description: `Comanda #${comanda.numero} na fila de impressão.` });
+    }
+    setPendingPrintItems(null);
+  }, [pendingPrintItems, createPrintJob]);
+
+
     return (
       <div className="min-h-screen bg-background p-6">
         <Skeleton className="h-10 w-full mb-4" />
