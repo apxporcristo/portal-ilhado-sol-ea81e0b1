@@ -127,6 +127,7 @@ export default function ComandasLista() {
   }, [pendingPrintItems, createPrintJob]);
 
 
+  if (loading) {
     return (
       <div className="min-h-screen bg-background p-6">
         <Skeleton className="h-10 w-full mb-4" />
