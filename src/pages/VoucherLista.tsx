@@ -133,7 +133,8 @@ export default function VoucherLista() {
         try {
           for (const v of voucherData) {
             const escposData = await createVoucherData(v.voucher_id, v.tempo_validade);
-            const response = await fetch('http://127.0.0.1:8787/print', {
+            const printServerUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '') || 'http://127.0.0.1:8787';
+            const response = await fetch(`${printServerUrl}/print`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ bluetoothAddress: printer.name, data: Array.from(escposData) }),
