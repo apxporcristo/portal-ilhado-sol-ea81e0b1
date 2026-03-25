@@ -54,8 +54,8 @@ export default function FichasLista() {
   const navigate = useNavigate();
   const { fichasAtivas, loading, registrarImpressao, produtos } = useFichasConsumo();
   const { getCategoriasOrdenadas, getItemsDaCategoria, getGruposDaCategoria, loading: loadingComp } = useComplementos();
-  const { config, printData, isBluetoothConnected, silentReconnectBluetooth, scanBluetoothDevices, connectBluetooth } = usePrinterContext();
-  const androidBridge = useAndroidBridge();
+  const { } = usePrinterContext();
+  const userSession = useOptionalUserSession();
   const userSession = useOptionalUserSession();
   const userName = userSession?.access?.nome || '';
   const { comandasAbertas, lancarItens, refetch: refetchComandas } = useComandas();
