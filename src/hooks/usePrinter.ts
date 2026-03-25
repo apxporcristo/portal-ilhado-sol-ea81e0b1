@@ -647,15 +647,18 @@ export function usePrinter() {
       );
     }
 
-    // Generate WiFi QR code as raster bitmap (universal compatibility)
-    const wifiQrString = getWifiQrString();
-    let wifiQrCommands: number[];
-    try {
-      wifiQrCommands = await createQRCodeRasterCommands(wifiQrString, layout.qrWidth);
-    } catch (err) {
-      console.warn('Raster QR failed, falling back to native ESC/POS QR', err);
-      const qrModuleSize = Math.max(3, Math.min(16, Math.round(layout.qrWidth / 4)));
-      wifiQrCommands = createQRCodeCommands(wifiQrString, qrModuleSize);
+    // Generate WiFi QR code only if QR dimensions are configured
+    const showQr = layout.qrWidth > 0 && layout.qrHeight > 0;
+    let wifiQrCommands: number[] = [];
+    if (showQr) {
+      const wifiQrString = getWifiQrString();
+      try {
+        wifiQrCommands = await createQRCodeRasterCommands(wifiQrString, layout.qrWidth);
+      } catch (err) {
+        console.warn('Raster QR failed, falling back to native ESC/POS QR', err);
+        const qrModuleSize = Math.max(3, Math.min(16, Math.round(layout.qrWidth / 4)));
+        wifiQrCommands = createQRCodeCommands(wifiQrString, qrModuleSize);
+      }
     }
 
     const voucherIdSizeCmd = useDoubleSize ? ESC_POS.SIZE_DOUBLE : ESC_POS.SIZE_NORMAL;
