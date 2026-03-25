@@ -10,8 +10,8 @@ import { useFichasConsumo, FichaAtiva, FichaProduto } from '@/hooks/useFichasCon
 import { useComplementos, Complemento, ComplementoItem, GrupoComplemento } from '@/hooks/useComplementos';
 import { getSupabaseClient } from '@/hooks/useVouchers';
 import { getPrintLayoutConfig } from '@/hooks/usePrintLayout';
-import { usePrinterContext } from '@/contexts/PrinterContext';
-import { useAndroidBridge } from '@/hooks/useAndroidBridge';
+  import { usePrinterContext } from '@/contexts/PrinterContext';
+  import { useOptionalUserSession } from '@/contexts/UserSessionContext';
 import { useOptionalUserSession } from '@/contexts/UserSessionContext';
 import { useImpressoras, Impressora } from '@/hooks/useImpressoras';
 import { usePrintJobs } from '@/hooks/usePrintJobs';
