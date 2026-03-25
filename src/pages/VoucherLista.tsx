@@ -100,59 +100,27 @@ export default function VoucherLista() {
           }
         }
         printSuccess = true;
-      } else if (printer?.type === 'network') {
-        try {
-          const parts = printer.name.split(':');
-          const printerIp = parts[0];
-          const printerPort = parts[1] || '9100';
-          
+      } else if (printer?.type === 'network' || printer?.type === 'bluetooth_local') {
+        // Rede e Bluetooth local: enviar via AndroidBridge ou deep link
+        if (window.AndroidBridge?.smartPrint) {
           for (const v of voucherData) {
             const escposData = await createVoucherData(v.voucher_id, v.tempo_validade);
-            const printServerUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '') || 'http://127.0.0.1:8787';
-            const response = await fetch(`${printServerUrl}/print`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ip: printerIp, port: parseInt(printerPort), data: Array.from(escposData) }),
+            const payload = JSON.stringify({
+              type: printer.type === 'bluetooth_local' ? 'bluetooth' : 'network',
+              address: printer.name,
+              data: Array.from(escposData),
             });
-            if (!response.ok) {
-              const result = await response.json().catch(() => ({}));
-              throw new Error(result.error || 'Erro ao imprimir');
-            }
+            window.AndroidBridge.smartPrint(payload);
           }
           printSuccess = true;
-        } catch (err: any) {
-          console.error('Erro na impressão de rede:', err);
-          const isOffline = err?.message?.includes('Failed to fetch') || err?.name === 'TypeError';
-          toast({ 
-            title: isOffline ? 'App local não encontrado' : 'Erro na impressão', 
-            description: isOffline ? 'O aplicativo de impressão local (porta 8787) não está respondendo. Verifique se está em execução.' : 'Não foi possível imprimir. Vouchers NÃO foram marcados.', 
-            variant: 'destructive' 
-          });
-        }
-      } else if (printer?.type === 'bluetooth_local') {
-        try {
+        } else {
+          // Tentar deep link para app auxiliar
+          const networkName = getNetworkName();
           for (const v of voucherData) {
-            const escposData = await createVoucherData(v.voucher_id, v.tempo_validade);
-            const printServerUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '') || 'http://127.0.0.1:8787';
-            const response = await fetch(`${printServerUrl}/print`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ bluetoothAddress: printer.name, data: Array.from(escposData) }),
-            });
-            if (!response.ok) {
-              const result = await response.json().catch(() => ({}));
-              throw new Error(result.error || 'Erro ao imprimir via Bluetooth');
-            }
+            const texto = `VOUCHER DE ACESSO\nVoucher: ${v.voucher_id}\nTempo: ${v.tempo_validade}`;
+            window.location.href = "voucherilha://print?text=" + encodeURIComponent(texto) + "&printer=" + encodeURIComponent(printer.name);
           }
           printSuccess = true;
-        } catch (err: any) {
-          console.error('Erro na impressão Bluetooth local:', err);
-          const isOffline = err?.message?.includes('Failed to fetch') || err?.name === 'TypeError';
-          toast({ 
-            title: isOffline ? 'App local não encontrado' : 'Erro na impressão Bluetooth', 
-            description: isOffline ? 'O aplicativo de impressão local (porta 8787) não está respondendo. Verifique se está em execução.' : 'Falha ao imprimir via Bluetooth.', 
-            variant: 'destructive' 
-          });
         }
       } else if (printer?.type === 'bluetooth') {
         let activeChar: any = null;

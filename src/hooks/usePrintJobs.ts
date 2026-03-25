@@ -80,41 +80,13 @@ export function usePrintJobs() {
       }
     }
 
-    if (!serverUrl) {
-      toast({ title: '⚠️ Print Server não configurado', description: 'Configure o IP do Print Server na aba Impressoras.', variant: 'destructive' });
-      return false;
-    }
-
-    if (window.location.protocol === 'https:' && serverUrl.startsWith('http://')) {
-      toast({
-        title: '⚠️ Bloqueado no preview HTTPS',
-        description: 'O navegador bloqueia acesso do site HTTPS do Lovable para um Print Server HTTP local. Teste isso no app Android instalado.',
-        variant: 'destructive'
-      });
-      return false;
-    }
-
-    try {
-      const encoder = new TextEncoder();
-      const bytes = encoder.encode(conteudo);
-      const dataArray = Array.from(bytes);
-
-      const res = await fetch(`${serverUrl}/print`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip, port: Number(port), data: dataArray }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Erro no Print Server');
-      toast({ title: '✅ Impresso com sucesso!' });
-      return true;
-    } catch (e) {
-      const message = e instanceof TypeError && (e.message === 'Failed to fetch' || e.message.includes('fetch'))
-        ? 'Impressão local indisponível neste navegador. Use o app auxiliar de impressão neste dispositivo.'
-        : (e as Error).message;
-      toast({ title: '❌ Erro na impressão direta', description: message, variant: 'destructive' });
-      return false;
-    }
+    // Sem AndroidBridge disponível — impressão local indisponível
+    toast({
+      title: 'Impressão indisponível',
+      description: 'Impressão local indisponível neste dispositivo. Utilize o app auxiliar de impressão.',
+      variant: 'destructive',
+    });
+    return false;
   }, []);
 
   return { jobs, loading, fetchJobs, createPrintJob, printDirect };
