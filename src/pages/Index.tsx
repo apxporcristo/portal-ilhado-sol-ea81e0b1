@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Ticket, Package, PackageCheck, AlertCircle, Shield, LogOut, Printer, Database, DollarSign, Plus, Clock, List, User, LogIn, CreditCard, ClipboardList, Settings, ArrowLeft, Scale, FileText } from 'lucide-react';
 import { useVouchers } from '@/hooks/useVouchers';
 import { usePrinterContext } from '@/contexts/PrinterContext';
-import { useImpressoras } from '@/hooks/useImpressoras';
+import { useImpressoras, Impressora } from '@/hooks/useImpressoras';
 import { useVoucherCart } from '@/hooks/useVoucherCart';
 import { useAndroidBridge } from '@/hooks/useAndroidBridge';
 import { usePrintJobs } from '@/hooks/usePrintJobs';
