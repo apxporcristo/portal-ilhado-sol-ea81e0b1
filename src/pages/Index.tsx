@@ -63,9 +63,10 @@ const Index = () => {
   const { comandasAbertas } = useComandas();
   const navigate = useNavigate();
   const androidBridge = useAndroidBridge();
-  const { createPrintJob } = usePrintJobs();
+  const { createPrintJob, createPrintJobFromBinary } = usePrintJobs();
+  const { impressoras } = useImpressoras();
+  const impressorasAtivas = impressoras.filter(p => p.ativa);
   const [showPrinterSelect, setShowPrinterSelect] = useState(false);
-  const [availablePrinters, setAvailablePrinters] = useState<AvailablePrinter[]>([]);
   const [batchPrinting, setBatchPrinting] = useState(false);
   const [statsDialog, setStatsDialog] = useState<{ open: boolean; type: 'total' | 'livres' | 'usados' | 'reservados'; title: string }>({ open: false, type: 'total', title: '' });
   const balanca = useBalanca();
