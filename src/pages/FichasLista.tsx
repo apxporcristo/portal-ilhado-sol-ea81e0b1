@@ -21,6 +21,7 @@ import { useComandas } from '@/hooks/useComandas';
 import { PagamentoDialog, PagamentoSelecionado } from '@/components/PagamentoDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useBalanca } from '@/hooks/useBalanca';
+import { ServeServiceDialog } from '@/components/ServeServiceDialog';
 
 interface SelectedItem {
   categoria: string;
@@ -56,8 +57,10 @@ export default function FichasLista() {
   const userSession = useOptionalUserSession();
   const userName = userSession?.access?.nome || '';
   const { comandasAbertas, lancarItens, refetch: refetchComandas } = useComandas();
-  const { lerPeso } = useBalanca();
+  const balanca = useBalanca();
+  const { lerPeso } = balanca;
   const [search, setSearch] = useState('');
+  const [showServeService, setShowServeService] = useState(false);
   const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
@@ -658,6 +661,19 @@ export default function FichasLista() {
             />
           </div>
 
+          {/* Serve Service button */}
+          {!balanca.loading && balanca.config.id && (
+            <Button
+              variant="outline"
+              className="w-full max-w-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10"
+              onClick={() => setShowServeService(true)}
+            >
+              <Scale className="h-5 w-5 mr-2 text-primary" />
+              <span className="font-semibold">SERVE SERVICE</span>
+              <span className="ml-2 text-sm text-muted-foreground">R$ {(balanca.config.valor_peso || 0).toFixed(2)}/kg</span>
+            </Button>
+          )}
+
           {grouped.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               {search ? 'Nenhum produto encontrado.' : 'Nenhuma ficha ativa no momento.'}
@@ -975,6 +991,30 @@ export default function FichasLista() {
         }}
         confirmText="Sim, incluir"
         cancelText="Não"
+      />
+
+      <ServeServiceDialog
+        open={showServeService}
+        onOpenChange={setShowServeService}
+        onAddToCart={(item) => {
+          const serveServiceFicha: FichaAtiva = {
+            id: `serve_service_${Date.now()}`,
+            nome_produto: item.fichaTexto,
+            valor: item.fichaValor,
+            categoria_id: '',
+            categoria_nome: 'Serve Service',
+            exigir_dados_cliente: true,
+            exigir_dados_atendente: true,
+            created_at: new Date().toISOString(),
+          };
+          setCart(prev => [...prev, {
+            ficha: serveServiceFicha,
+            quantidade: 1,
+            selectedItems: [],
+            peso: parseFloat(item.tempo.match(/[\d.]+/)?.[0] || '0'),
+            valorPorKg: balanca.config.valor_peso || 0,
+          }]);
+        }}
       />
     </div>
   );
