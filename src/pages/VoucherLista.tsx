@@ -60,7 +60,7 @@ export default function VoucherLista() {
       if (imp.tipo === 'bluetooth') {
         printers.push({ type: 'bluetooth', name: imp.bluetooth_nome || imp.nome });
       } else if (imp.tipo === 'rede' && imp.ip) {
-        printers.push({ type: 'network', name: `${imp.nome} (${imp.ip}:${imp.porta || '9100'})` });
+        printers.push({ type: 'network', name: `${imp.nome} (${imp.ip}:${imp.porta || '9100'})`, ip: imp.ip, port: imp.porta || '9100' });
       }
     }
     if (config.bluetoothDeviceName && !printers.some(p => p.name === config.bluetoothDeviceName)) {
