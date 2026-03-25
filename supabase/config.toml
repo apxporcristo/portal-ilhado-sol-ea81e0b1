@@ -1,0 +1,16 @@
+project_id = "boiwvevdroytuqqfamsq"
+
+[functions.manage-users]
+verify_jwt = false
+
+[functions.create-user-admin]
+verify_jwt = false
+
+[functions.print-network]
+verify_jwt = false
+
+[functions.scan-network-printers]
+verify_jwt = false
+
+[functions.create-first-admin]
+verify_jwt = false

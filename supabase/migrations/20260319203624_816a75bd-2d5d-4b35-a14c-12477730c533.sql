@@ -1,0 +1,1 @@
+ALTER TABLE public.fichas_produtos ADD COLUMN IF NOT EXISTS printer_id uuid REFERENCES public.impressoras(id) ON DELETE SET NULL;
