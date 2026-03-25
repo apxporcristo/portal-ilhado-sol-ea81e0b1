@@ -181,52 +181,14 @@ export default function VoucherLista() {
 
   const handleBatchPrint = useCallback(async () => {
     const printers = getAvailablePrinters();
-    const androidPrinter = printers.find(p => p.name === 'Android (SmartPrint)');
-
-    if (androidPrinter && androidBridge.isAvailable()) {
-      await executeBatchPrint(androidPrinter);
+    if (printers.length === 0) {
+      toast({ title: 'Nenhuma impressora disponível', description: 'Cadastre uma impressora nas configurações.', variant: 'destructive' });
       return;
     }
-
-    const { printer: voucherPrinter, error: voucherError } = getVoucherPrinter();
-    
-    if (voucherPrinter) {
-      if (voucherPrinter.tipo === 'bluetooth') {
-        const btLocalPrinter: AvailablePrinter = { type: 'bluetooth_local', name: voucherPrinter.bluetooth_mac || voucherPrinter.bluetooth_nome || voucherPrinter.nome };
-        await executeBatchPrint(btLocalPrinter);
-        return;
-      }
-      if (voucherPrinter.tipo === 'rede') {
-        const netPrinter: AvailablePrinter = { type: 'network', name: `${voucherPrinter.ip}:${voucherPrinter.porta || '9100'}` };
-        await executeBatchPrint(netPrinter);
-        return;
-      }
-    }
-
-    if (voucherError) {
-      toast({ title: 'Impressora não configurada', description: voucherError, variant: 'destructive' });
-    }
-
-    const networkPrinter = printers.find(p => p.type === 'network' && p.name !== 'Android (SmartPrint)');
-    if (networkPrinter) { await executeBatchPrint(networkPrinter); return; }
-    if (androidPrinter) { await executeBatchPrint(androidPrinter); return; }
-    const btPrinter = printers.find(p => p.type === 'bluetooth');
-    if (btPrinter) {
-      if (isBluetoothConnected()) { await executeBatchPrint(btPrinter); return; }
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        toast({ title: `Reconectando... (${attempt}/3)`, description: `Tentando conectar a ${btPrinter.name} automaticamente` });
-        const char = await silentReconnectBluetooth();
-        if (char) { await executeBatchPrint(btPrinter); return; }
-        if (attempt < 3) await new Promise(r => setTimeout(r, 1500));
-      }
-      toast({ title: 'Não foi possível reconectar', description: 'Selecione a impressora manualmente.', variant: 'destructive' });
-      const char = await reconnectBluetooth();
-      if (char) { await executeBatchPrint(btPrinter); return; }
-    }
-    toast({ title: 'Nenhuma impressora encontrada', description: 'Selecione ou conecte uma impressora.' });
+    // Always show printer select modal
     setAvailablePrinters(printers);
     setShowPrinterSelect(true);
-  }, [getVoucherPrinter, getAvailablePrinters, executeBatchPrint, isBluetoothConnected, reconnectBluetooth, silentReconnectBluetooth, toast, androidBridge]);
+  }, [getAvailablePrinters]);
 
   const handlePrinterSelected = useCallback(async (printer: AvailablePrinter) => {
     await executeBatchPrint(printer);
