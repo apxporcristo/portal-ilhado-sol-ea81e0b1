@@ -27,6 +27,7 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { useOptionalUserSession } from '@/contexts/UserSessionContext';
 import { useFichasConsumo } from '@/hooks/useFichasConsumo';
 import { useComandas } from '@/hooks/useComandas';
+import { AuditoriaComandas } from '@/components/AuditoriaComandas';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
