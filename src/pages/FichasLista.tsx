@@ -57,8 +57,10 @@ export default function FichasLista() {
   const userSession = useOptionalUserSession();
   const userName = userSession?.access?.nome || '';
   const { comandasAbertas, lancarItens, refetch: refetchComandas } = useComandas();
-  const { lerPeso } = useBalanca();
+  const balanca = useBalanca();
+  const { lerPeso } = balanca;
   const [search, setSearch] = useState('');
+  const [showServeService, setShowServeService] = useState(false);
   const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
