@@ -91,8 +91,11 @@ export default function VoucherLista() {
       if (!hasVouchers) { setBatchPrinting(false); return; }
 
       if (printer?.name === 'Android (SmartPrint)') {
+        const { getPrintLayoutConfig } = await import('@/hooks/usePrintLayout');
+        const layout = getPrintLayoutConfig();
+        const showQr = layout.qrWidth > 0 && layout.qrHeight > 0;
         const networkName = getNetworkName();
-        const wifiQrData = getWifiQrString();
+        const wifiQrData = showQr ? getWifiQrString() : '';
         const now = new Date();
         const currentDate = now.toLocaleDateString('pt-BR');
         const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -101,7 +104,7 @@ export default function VoucherLista() {
           if (window.AndroidBridge?.smartPrintVoucher) {
             window.AndroidBridge.smartPrintVoucher(texto, wifiQrData);
           } else {
-            window.location.href = "voucherilha://print?text=" + encodeURIComponent(texto) + "&qr=" + encodeURIComponent(wifiQrData);
+            window.location.href = "voucherilha://print?text=" + encodeURIComponent(texto) + (wifiQrData ? "&qr=" + encodeURIComponent(wifiQrData) : '');
           }
         }
         printSuccess = true;
