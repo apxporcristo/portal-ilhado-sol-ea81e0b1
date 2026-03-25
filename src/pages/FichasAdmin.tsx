@@ -825,6 +825,10 @@ export default function FichasAdmin() {
                 <Input type="number" min="0" step="0.01" value={prodForm.valor_por_kg} onChange={(e) => setProdForm(p => ({ ...p, valor_por_kg: e.target.value }))} placeholder="0.00" className="w-28" />
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <Switch checked={prodForm.imprimir_ficha} onCheckedChange={(v) => setProdForm(p => ({ ...p, imprimir_ficha: v }))} />
+              <Label>Imprimir ficha</Label>
+            </div>
             <div className="space-y-2">
               <Label>Observação <span className="text-muted-foreground text-xs">(opcional, aparece na ficha)</span></Label>
               <Input value={prodForm.obs} onChange={(e) => setProdForm(p => ({ ...p, obs: e.target.value }))} placeholder="Ex: Acompanha arroz e salada" maxLength={100} />
