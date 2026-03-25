@@ -542,30 +542,23 @@ export default function FichasLista() {
         console.log('[Ficha Print] ESC/POS gerado, bytes:', escposData.length);
 
         if (printer.tipo === 'rede') {
-          // Network printer: use edge function via dynamic Supabase config
+          // Network printer: use supabase.functions.invoke for correct URL/auth
           try {
             const sbClient = await getSupabaseClient();
-            // Get the Supabase URL from the client
-            const supabaseUrl = (sbClient as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
-            const supabaseKey = (sbClient as any).supabaseKey || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-            
             console.log('[Ficha Print] Rede - IP:', printer.ip, 'Porta:', printer.porta);
-            const response = await fetch(`${supabaseUrl}/functions/v1/print-network`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseKey}`,
-              },
-              body: JSON.stringify({
+            const { data: result, error: fnError } = await sbClient.functions.invoke('print-network', {
+              body: {
                 ip: printer.ip,
                 port: parseInt(printer.porta || '9100', 10),
                 data: Array.from(escposData),
-              }),
+              },
             });
-            const result = await response.json();
-            console.log('[Ficha Print] Resposta rede:', response.status, result);
-            if (!response.ok) {
-              throw new Error(result.error || 'Erro ao enviar para impressora de rede');
+            console.log('[Ficha Print] Resposta rede:', result, 'erro:', fnError);
+            if (fnError) {
+              throw new Error(fnError.message || 'Erro ao enviar para impressora de rede');
+            }
+            if (result?.error) {
+              throw new Error(result.error);
             }
           } catch (err) {
             console.error('[Ficha Print] Erro impressão rede:', err);
