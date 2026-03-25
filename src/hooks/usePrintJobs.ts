@@ -67,17 +67,38 @@ export function usePrintJobs() {
 
   /** Impressão direta via Print Server HTTP local (sem fila) */
   const printDirect = useCallback(async (ip: string, port: number | string, conteudo: string): Promise<boolean> => {
-    const serverUrl = getLocalPrintServerUrl();
+    const serverUrl = getLocalPrintServerUrl().trim().replace(/\/+$/, '');
+
+    if (window.IS_ANDROID_APP === true && window.AndroidBridge?.smartPrint) {
+      try {
+        window.AndroidBridge.smartPrint(conteudo);
+        toast({ title: '✅ Enviado para o app Android', description: 'A impressão foi enviada pelo AndroidBridge.' });
+        return true;
+      } catch (e) {
+        toast({ title: '❌ Erro na impressão direta', description: (e as Error).message, variant: 'destructive' });
+        return false;
+      }
+    }
+
     if (!serverUrl) {
       toast({ title: '⚠️ Print Server não configurado', description: 'Configure o IP do Print Server na aba Impressoras.', variant: 'destructive' });
       return false;
     }
+
+    if (window.location.protocol === 'https:' && serverUrl.startsWith('http://')) {
+      toast({
+        title: '⚠️ Bloqueado no preview HTTPS',
+        description: 'O navegador bloqueia acesso do site HTTPS do Lovable para um Print Server HTTP local. Teste isso no app Android instalado.',
+        variant: 'destructive'
+      });
+      return false;
+    }
+
     try {
-      // Convert string content to byte array (same format VoucherLista uses)
       const encoder = new TextEncoder();
       const bytes = encoder.encode(conteudo);
       const dataArray = Array.from(bytes);
-      
+
       const res = await fetch(`${serverUrl}/print`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,7 +109,10 @@ export function usePrintJobs() {
       toast({ title: '✅ Impresso com sucesso!' });
       return true;
     } catch (e) {
-      toast({ title: '❌ Erro na impressão direta', description: (e as Error).message, variant: 'destructive' });
+      const message = e instanceof TypeError && (e.message === 'Failed to fetch' || e.message.includes('fetch'))
+        ? 'Falha de rede ao acessar o Print Server local. No preview do Lovable isso costuma ser bloqueio do navegador por HTTPS x HTTP local.'
+        : (e as Error).message;
+      toast({ title: '❌ Erro na impressão direta', description: message, variant: 'destructive' });
       return false;
     }
   }, []);
