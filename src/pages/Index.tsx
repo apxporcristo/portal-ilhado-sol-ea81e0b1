@@ -538,20 +538,6 @@ const Index = () => {
                 </Card>
               )}
 
-              {/* Carrinho de itens adicionados (ex: Serve Service) */}
-              {cart.items.length > 0 && (
-                <VoucherCart
-                  items={cart.items}
-                  onAdd={(tempo, opts) => cart.addItem(tempo, opts)}
-                  onRemove={(tempo, fichaType) => cart.removeItem(tempo, fichaType)}
-                  onRemoveAll={(tempo, fichaType) => cart.removeAll(tempo, fichaType)}
-                  onClear={() => cart.clearCart()}
-                  onPrint={handleBatchPrint}
-                  totalItems={cart.totalItems}
-                  printing={batchPrinting}
-                  availableByTempo={stats.livresPorTempo}
-                />
-              )}
             </div>
           </div>
         )}
