@@ -528,11 +528,16 @@ export function useBalanca() {
     buscarDispositivosSerial,
     disconnect,
     fetchConfig,
-    // BT-specific
+    // BT-specific (Web Bluetooth)
     parearNovoDispositivo,
     listarDispositivosPareados,
     conectarDispositivo,
     connectBluetoothWithRetries,
     isBtConnected,
+    // Android Bridge scale
+    conectarBalancaAndroid,
+    desconectarBalancaAndroid,
+    isScaleConnectedAndroid,
+    listarDispositivosPareadosAndroid,
   };
 }
