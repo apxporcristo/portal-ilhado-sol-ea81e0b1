@@ -21,7 +21,7 @@ import { usePrinterContext } from '@/contexts/PrinterContext';
 import { useAndroidBridge, isAndroidApp } from '@/hooks/useAndroidBridge';
 import { PrintLayoutSettings } from '@/components/PrintLayoutSettings';
 import { FichaLayoutSettings } from '@/components/FichaLayoutSettings';
-import { usePrintJobs, getLocalPrintServerUrl, setLocalPrintServerUrl } from '@/hooks/usePrintJobs';
+import { usePrintJobs } from '@/hooks/usePrintJobs';
 
 interface PrinterFormData {
   nome: string;
