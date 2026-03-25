@@ -42,10 +42,9 @@ export default function VoucherLista() {
   } = useVouchers();
 
   const { config, printData, createVoucherData, isBluetoothConnected, reconnectBluetooth, silentReconnectBluetooth, scanBluetoothDevices, connectBluetooth } = usePrinterContext();
-  const { getVoucherPrinter } = useImpressoras();
+  const { impressoras, getVoucherPrinter } = useImpressoras();
   const cart = useVoucherCart();
   const androidBridge = useAndroidBridge();
-  const { createPrintJob } = usePrintJobs();
   const [showPrinterSelect, setShowPrinterSelect] = useState(false);
   const [availablePrinters, setAvailablePrinters] = useState<AvailablePrinter[]>([]);
   const [batchPrinting, setBatchPrinting] = useState(false);
