@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase-external';
 import { useNavigate } from 'react-router-dom';
-import { Ticket, Package, PackageCheck, AlertCircle, Shield, LogOut, Printer, Database, DollarSign, Plus, Clock, List, User, LogIn, CreditCard, ClipboardList, Settings, ArrowLeft, Scale } from 'lucide-react';
+import { Ticket, Package, PackageCheck, AlertCircle, Shield, LogOut, Printer, Database, DollarSign, Plus, Clock, List, User, LogIn, CreditCard, ClipboardList, Settings, ArrowLeft, Scale, FileText } from 'lucide-react';
 import { useVouchers } from '@/hooks/useVouchers';
 import { usePrinterContext } from '@/contexts/PrinterContext';
 import { useImpressoras } from '@/hooks/useImpressoras';
@@ -27,6 +27,7 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { useOptionalUserSession } from '@/contexts/UserSessionContext';
 import { useFichasConsumo } from '@/hooks/useFichasConsumo';
 import { useComandas } from '@/hooks/useComandas';
+import { AuditoriaComandas } from '@/components/AuditoriaComandas';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -420,6 +421,10 @@ const Index = () => {
                   Usuários
                 </TabsTrigger>
                 <TabsTrigger value="settings">Configurações</TabsTrigger>
+                <TabsTrigger value="auditoria" className="flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  Auditoria
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="import" className="mt-6">
@@ -445,6 +450,9 @@ const Index = () => {
               </TabsContent>
               <TabsContent value="settings" className="mt-6">
                 <AdminSettings />
+              </TabsContent>
+              <TabsContent value="auditoria" className="mt-6">
+                <AuditoriaComandas />
               </TabsContent>
             </Tabs>
           </>

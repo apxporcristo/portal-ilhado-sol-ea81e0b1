@@ -11,6 +11,7 @@ import { useFormasPagamento, FormaPagamento } from '@/hooks/useFormasPagamento';
 import { PagamentoDialog, PagamentoSelecionado } from '@/components/PagamentoDialog';
 import { cn } from '@/lib/utils';
 import { formatCPF, cleanCPF } from '@/lib/cpf-utils';
+import { useOptionalUserSession } from '@/contexts/UserSessionContext';
 
 interface Props {
   comanda: Comanda | null;
@@ -40,18 +41,14 @@ interface PendingChanges {
 }
 
 export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onClosed }: Props) {
-  const { getItensComanda, excluirItem, editarItem, registrarAlteracao, autenticarUsuario, fecharComanda } = useComandas();
+  const { getItensComanda, excluirItem, editarItem, registrarAlteracao, fecharComanda } = useComandas();
   const { formasAtivas } = useFormasPagamento();
+  const sessionCtx = useOptionalUserSession();
+  const loggedUser = sessionCtx?.access;
+
   const [items, setItems] = useState<ComandaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<PendingChanges>({ deletes: [], decreases: {}, descriptions: [] });
-
-  // Auth modal
-  const [showAuth, setShowAuth] = useState(false);
-  const [authCpf, setAuthCpf] = useState('');
-  const [authSenha, setAuthSenha] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authAction, setAuthAction] = useState<'save' | 'close'>('save');
   const [pendingPagamentos, setPendingPagamentos] = useState<PagamentoSelecionado[]>([]);
 
   // Close comanda
@@ -70,7 +67,94 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
 
   const hasChanges = pending.deletes.length > 0 || Object.keys(pending.decreases).length > 0;
 
-  // Group identical products, applying pending changes
+  // Get logged user info for audit
+  const getAuditUser = () => {
+    const email = loggedUser?.email || loggedUser?.cpf || 'sistema';
+    const nome = loggedUser?.nome || null;
+    const cpf = loggedUser?.cpf || null;
+    return { email, nome, cpf };
+  };
+
+  const handleSaveChanges = async () => {
+    if (!loggedUser) {
+      toast({ title: 'Usuário não autenticado', description: 'Faça login para realizar alterações.', variant: 'destructive' });
+      return;
+    }
+    const { email, nome, cpf } = getAuditUser();
+    await executeSave(email, nome, cpf);
+  };
+
+  const handleCloseComanda = async (pagamentos: PagamentoSelecionado[]) => {
+    if (!loggedUser) {
+      toast({ title: 'Usuário não autenticado', description: 'Faça login para encerrar a comanda.', variant: 'destructive' });
+      return;
+    }
+    const { email, nome, cpf } = getAuditUser();
+    await executeClose(email, nome, pagamentos, cpf);
+  };
+
+  const executeSave = async (email: string, nome?: string | null, cpf?: string | null) => {
+    if (!comanda) return;
+    try {
+      for (const id of pending.deletes) {
+        await excluirItem(id);
+      }
+      for (const [key, dec] of Object.entries(pending.decreases)) {
+        const groupItems = items.filter(i => {
+          const compKey = i.complementos ? JSON.stringify(i.complementos) : '';
+          return `${i.produto_nome}|${compKey}|${Number(i.valor_unitario)}` === key;
+        });
+        let remaining = dec;
+        for (let idx = groupItems.length - 1; idx >= 0 && remaining > 0; idx--) {
+          const item = groupItems[idx];
+          if (item.quantidade <= remaining) {
+            await excluirItem(item.id);
+            remaining -= item.quantidade;
+          } else {
+            await editarItem(item.id, {
+              quantidade: item.quantidade - remaining,
+              valor_total: (item.quantidade - remaining) * Number(item.valor_unitario),
+            } as any);
+            remaining = 0;
+          }
+        }
+      }
+      for (const desc of pending.descriptions) {
+        await registrarAlteracao(comanda.id, null, 'edicao', `${desc} [CPF: ${cpf || 'N/A'}]`, email, nome || undefined);
+      }
+      toast({ title: 'Alterações salvas' });
+      setPending({ deletes: [], decreases: {}, descriptions: [] });
+      onOpenChange(false);
+      onClosed?.();
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+
+  const executeClose = async (email: string, nome?: string | null, pagamentos?: PagamentoSelecionado[], cpf?: string | null) => {
+    if (!comanda || !pagamentos || pagamentos.length === 0) return;
+    try {
+      if (hasChanges) {
+        await executeSave(email, nome, cpf);
+      }
+      const formaDesc = pagamentos.map(p => `${p.forma.nome}: R$ ${p.valor.toFixed(2).replace('.', ',')}`).join(' | ');
+      await fecharComanda(comanda.id, pagamentos[0].forma.id, formaDesc, email, nome || undefined);
+      // Additional audit with CPF
+      await registrarAlteracao(
+        comanda.id, null, 'edicao',
+        `Comanda encerrada - ${formaDesc} [CPF: ${cpf || 'N/A'}]`,
+        email, nome || undefined
+      );
+      toast({ title: 'Comanda encerrada com sucesso' });
+      setShowClose(false);
+      onOpenChange(false);
+      onClosed?.();
+    } catch (err: any) {
+      toast({ title: 'Erro ao encerrar comanda', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+
+  // Grouped items and total
   const groupedItems = useMemo(() => {
     const activeItems = items.filter(i => !pending.deletes.includes(i.id));
     const groups: Record<string, GroupedItem> = {};
@@ -97,14 +181,12 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
         };
       }
     }
-    // Apply pending decreases
     for (const [key, dec] of Object.entries(pending.decreases)) {
       if (groups[key]) {
         groups[key].quantidade -= dec;
         groups[key].valor_total = groups[key].quantidade * groups[key].valor_unitario;
       }
     }
-    // Remove groups with 0 or less
     return Object.values(groups).filter(g => g.quantidade > 0);
   }, [items, pending]);
 
@@ -126,98 +208,6 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
       decreases: (() => { const d = { ...prev.decreases }; delete d[group.key]; return d; })(),
       descriptions: [...prev.descriptions, `Itens removidos: ${group.produto_nome} (${group.quantidade}x)`],
     }));
-  };
-
-  const requestAuth = (action: 'save' | 'close') => {
-    setAuthAction(action);
-    setAuthCpf('');
-    setAuthSenha('');
-    setShowAuth(true);
-  };
-
-  const handleAuth = async () => {
-    const cpfClean = cleanCPF(authCpf);
-    if (!cpfClean || !authSenha) return;
-    if (cpfClean.length !== 11) {
-      toast({ title: 'CPF inválido', description: 'Informe os 11 dígitos do CPF.', variant: 'destructive' });
-      return;
-    }
-    setAuthLoading(true);
-    const result = await autenticarUsuario(cpfClean, authSenha);
-    setAuthLoading(false);
-    if (!result.success) {
-      toast({ title: 'Autenticação falhou', description: 'CPF ou senha incorretos.', variant: 'destructive' });
-      return;
-    }
-    setShowAuth(false);
-    const email = result.email || cpfClean;
-    const nome = result.nome;
-
-    if (authAction === 'save') {
-      await executeSave(email, nome);
-    } else if (authAction === 'close') {
-      await executeClose(email, nome, pendingPagamentos);
-    }
-  };
-
-  const executeSave = async (email: string, nome?: string) => {
-    if (!comanda) return;
-    try {
-      // Process full deletes
-      for (const id of pending.deletes) {
-        await excluirItem(id);
-      }
-      // Process decreases
-      for (const [key, dec] of Object.entries(pending.decreases)) {
-        // Find the group's item IDs from the original items
-        const groupItems = items.filter(i => {
-          const compKey = i.complementos ? JSON.stringify(i.complementos) : '';
-          return `${i.produto_nome}|${compKey}|${Number(i.valor_unitario)}` === key;
-        });
-        let remaining = dec;
-        // Remove from last items first
-        for (let idx = groupItems.length - 1; idx >= 0 && remaining > 0; idx--) {
-          const item = groupItems[idx];
-          if (item.quantidade <= remaining) {
-            await excluirItem(item.id);
-            remaining -= item.quantidade;
-          } else {
-            await editarItem(item.id, {
-              quantidade: item.quantidade - remaining,
-              valor_total: (item.quantidade - remaining) * Number(item.valor_unitario),
-            } as any);
-            remaining = 0;
-          }
-        }
-      }
-      // Log all changes
-      for (const desc of pending.descriptions) {
-        await registrarAlteracao(comanda.id, null, 'edicao', desc, email, nome);
-      }
-      toast({ title: 'Alterações salvas' });
-      setPending({ deletes: [], decreases: {}, descriptions: [] });
-      onOpenChange(false);
-      onClosed?.();
-    } catch (err: any) {
-      toast({ title: 'Erro ao salvar', description: err?.message || String(err), variant: 'destructive' });
-    }
-  };
-
-  const executeClose = async (email: string, nome?: string, pagamentos?: PagamentoSelecionado[]) => {
-    if (!comanda || !pagamentos || pagamentos.length === 0) return;
-    try {
-      if (hasChanges) {
-        await executeSave(email, nome);
-      }
-      const formaDesc = pagamentos.map(p => `${p.forma.nome}: R$ ${p.valor.toFixed(2).replace('.', ',')}`).join(' | ');
-      await fecharComanda(comanda.id, pagamentos[0].forma.id, formaDesc, email, nome);
-      toast({ title: 'Comanda encerrada com sucesso' });
-      setShowClose(false);
-      onOpenChange(false);
-      onClosed?.();
-    } catch (err: any) {
-      toast({ title: 'Erro ao encerrar comanda', description: err?.message || String(err), variant: 'destructive' });
-    }
   };
 
   if (!comanda) return null;
@@ -312,7 +302,7 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
             {comanda.status === 'aberta' && (
               <Button variant="outline" onClick={() => {
                 if (hasChanges) {
-                  requestAuth('save');
+                  handleSaveChanges();
                 } else {
                   onOpenChange(false);
                 }
@@ -331,40 +321,6 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
         </DialogContent>
       </Dialog>
 
-      {/* Auth Dialog */}
-      <Dialog open={showAuth} onOpenChange={setShowAuth}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Autenticação necessária</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Informe suas credenciais para confirmar as alterações na comanda.
-          </p>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>CPF</Label>
-              <Input
-                inputMode="numeric"
-                value={authCpf}
-                onChange={e => setAuthCpf(formatCPF(e.target.value))}
-                placeholder="000.000.000-00"
-                maxLength={14}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Senha</Label>
-              <Input type="password" value={authSenha} onChange={e => setAuthSenha(e.target.value)} placeholder="Sua senha" onKeyDown={e => e.key === 'Enter' && handleAuth()} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAuth(false)}>Cancelar</Button>
-            <Button onClick={handleAuth} disabled={authLoading || !cleanCPF(authCpf) || !authSenha}>
-              {authLoading ? 'Verificando...' : 'Confirmar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Encerrar Comanda Dialog */}
       <PagamentoDialog
         open={showClose}
@@ -375,9 +331,8 @@ export function ComandaDetalhe({ comanda, open, onOpenChange, onPrintItems, onCl
         confirmLabel="Confirmar encerramento"
         confirmIcon={<Lock className="h-4 w-4 mr-2" />}
         onConfirm={(pagamentos) => {
-          setPendingPagamentos(pagamentos);
           setShowClose(false);
-          requestAuth('close');
+          handleCloseComanda(pagamentos);
         }}
       />
     </>
