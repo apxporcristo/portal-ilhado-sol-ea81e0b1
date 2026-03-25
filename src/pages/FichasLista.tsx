@@ -535,18 +535,26 @@ export default function FichasLista() {
   };
 
   const sendToPrinterDirect = async (printer: Impressora, items: CartItem[], dateStr: string, timeStr: string) => {
+    console.log('[Ficha Print] Enviando para impressora:', printer.nome, 'tipo:', printer.tipo, 'itens:', items.length);
     for (const item of items) {
       for (let i = 0; i < item.quantidade; i++) {
         const escposData = generateFichaConsumoEscPos(item, dateStr, timeStr);
+        console.log('[Ficha Print] ESC/POS gerado, bytes:', escposData.length);
 
         if (printer.tipo === 'rede') {
-          // Network printer: use edge function
+          // Network printer: use edge function via dynamic Supabase config
           try {
-            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/print-network`, {
+            const sbClient = await getSupabaseClient();
+            // Get the Supabase URL from the client
+            const supabaseUrl = (sbClient as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+            const supabaseKey = (sbClient as any).supabaseKey || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+            
+            console.log('[Ficha Print] Rede - IP:', printer.ip, 'Porta:', printer.porta);
+            const response = await fetch(`${supabaseUrl}/functions/v1/print-network`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                'Authorization': `Bearer ${supabaseKey}`,
               },
               body: JSON.stringify({
                 ip: printer.ip,
@@ -555,22 +563,49 @@ export default function FichasLista() {
               }),
             });
             const result = await response.json();
+            console.log('[Ficha Print] Resposta rede:', response.status, result);
             if (!response.ok) {
               throw new Error(result.error || 'Erro ao enviar para impressora de rede');
             }
           } catch (err) {
-            console.error('Erro impressão rede:', err);
+            console.error('[Ficha Print] Erro impressão rede:', err);
             toast({ title: 'Erro na impressão', description: (err as Error).message, variant: 'destructive' });
           }
         } else if (printer.tipo === 'bluetooth') {
+          console.log('[Ficha Print] Bluetooth - AndroidBridge:', !!window.AndroidBridge, 'WebBT:', isBluetoothConnected());
           // Bluetooth printer: use AndroidBridge or Web Bluetooth
-          if (window.AndroidBridge?.smartPrint) {
-            const payload = JSON.stringify({
-              type: 'bluetooth',
-              address: printer.bluetooth_mac || printer.bluetooth_nome || printer.nome,
-              data: Array.from(escposData),
-            });
-            window.AndroidBridge.smartPrint(payload);
+          if (window.AndroidBridge?.smartPrintVoucher) {
+            // smartPrintVoucher accepts plain text + optional QR data
+            const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            let fichaText = 'Ficha de consumo\n';
+            fichaText += `Categoria: ${item.ficha.categoria_nome}\n`;
+            fichaText += `${item.ficha.nome_produto}\n`;
+            if (item.selectedItems.length > 0) {
+              fichaText += '- - - - - - - - - - - - - - - -\n';
+              for (const si of item.selectedItems) {
+                fichaText += `${si.item.nome}`;
+                if (Number(si.item.valor) > 0) fichaText += ` R$${Number(si.item.valor).toFixed(2).replace('.', ',')}`;
+                fichaText += '\n';
+              }
+              fichaText += `Total: R$ ${cartItemTotal(item).toFixed(2).replace('.', ',')}\n`;
+            }
+            const hasC = item.ficha.exigir_dados_cliente && nomeCliente.trim();
+            const hasA = item.ficha.exigir_dados_atendente && nomeAtendente.trim();
+            if (hasC || hasA) {
+              fichaText += '- - - - - - - - - - - - - - - -\n';
+              if (hasC) fichaText += `Cliente: ${nomeCliente.trim()}\n`;
+              if (hasA) fichaText += `Atendente: ${nomeAtendente.trim()}\n`;
+            }
+            fichaText += `Impresso em: ${dateStr} ${timeStr}\n`;
+            window.AndroidBridge.smartPrintVoucher(normalize(fichaText), '');
+          } else if (window.AndroidBridge?.smartPrint) {
+            // Fallback to smartPrint with plain text
+            const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            let fichaText = 'Ficha de consumo\n';
+            fichaText += `Categoria: ${item.ficha.categoria_nome}\n`;
+            fichaText += `${item.ficha.nome_produto}\n`;
+            fichaText += `Impresso em: ${dateStr} ${timeStr}\n`;
+            window.AndroidBridge.smartPrint(normalize(fichaText));
           } else if (isBluetoothConnected()) {
             await printData(escposData);
           } else {
