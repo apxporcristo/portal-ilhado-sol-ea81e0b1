@@ -341,13 +341,28 @@ export default function FichasLista() {
       setDocumentoCliente('');
       setPrintDialog(true);
     } else {
-      executePrint();
+      // Show printer selection if there are registered printers
+      if (impressorasAtivas.length > 0) {
+        setShowPrinterSelectModal(true);
+      } else {
+        executePrint();
+      }
     }
   };
 
   const handleConfirmPrint = () => {
     setPrintDialog(false);
-    executePrint();
+    if (impressorasAtivas.length > 0) {
+      setShowPrinterSelectModal(true);
+    } else {
+      executePrint();
+    }
+  };
+
+  const handleSelectPrinterAndPrint = (imp: Impressora) => {
+    setShowPrinterSelectModal(false);
+    executePrint(imp);
+  };
   };
 
   const buildItemsText = (item: CartItem): string => {
