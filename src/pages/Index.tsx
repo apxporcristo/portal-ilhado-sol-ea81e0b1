@@ -16,7 +16,6 @@ import { AdminSettings } from '@/components/AdminSettings';
 import { SupabaseSettings } from '@/components/SupabaseSettings';
 import { PrinterSettings } from '@/components/PrinterSettings';
 import { PackageSettings } from '@/components/PackageSettings';
-import { PrinterSelectDialog, AvailablePrinter } from '@/components/PrinterSelectDialog';
 import { VoucherCart } from '@/components/VoucherCart';
 import { UserPermissionsManager } from '@/components/UserPermissionsManager';
 import { FormasPagamentoSettings } from '@/components/FormasPagamentoSettings';
