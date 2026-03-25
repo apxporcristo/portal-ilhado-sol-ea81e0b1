@@ -1,5 +1,4 @@
 import { createRoot } from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -25,7 +24,16 @@ window.addEventListener("appinstalled", () => {
   window.dispatchEvent(new CustomEvent("pwa-installed"));
 });
 
-registerSW({ immediate: true });
+// PWA registration - only in production
+try {
+  import("virtual:pwa-register").then(({ registerSW }) => {
+    registerSW({ immediate: true });
+  }).catch(() => {
+    console.log("PWA registration skipped");
+  });
+} catch (e) {
+  console.log("PWA not available");
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
 
